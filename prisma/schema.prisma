@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DONOR
+  NGO
+  VOLUNTEER
+  ADMIN
+}
+
+enum OrgType {
+  DONOR
+  NGO
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FoodCategory {
+  COOKED_MEALS
+  PACKAGED_FOOD
+  RAW_PRODUCE
+  BAKERY
+  BEVERAGES
+  DAIRY
+  OTHER
+}
+
+enum QuantityUnit {
+  SERVINGS
+  KG
+  PACKETS
+  BOXES
+}
+
+enum StorageInfo {
+  AMBIENT
+  REFRIGERATED
+  HOT_HOLD
+  FROZEN
+}
+
+enum PackagingInfo {
+  SEALED_CONTAINERS
+  FOIL_WRAPPED
+  BULK_VESSELS
+  PACKETED
+  BOXED
+  OTHER
+}
+
+enum DonationStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_ALLOCATED
+  FULLY_ALLOCATED
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
+enum AllocationStatus {
+  ACCEPTED
+  AWAITING_VOLUNTEER
+  ASSIGNED
+  COLLECTED
+  DELIVERED
+  PARTIALLY_DELIVERED
+  REJECTED
+  CANCELLED
+  FAILED
+}
+
+enum AssignmentStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  TIMED_OUT
+  CANCELLED
+  COLLECTED
+  COMPLETED
+  FAILED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum HandoverStage {
+  COLLECTION
+  DELIVERY
+}
+
+enum NotificationType {
+  INFO
+  OFFER
+  ALERT
+  CANCELLATION
+  HANDOVER
+  SYSTEM
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  passwordHash     String
+  name             String
+  phone            String?
+  role             Role      @default(DONOR)
+  isActive         Boolean   @default(true)
+  isSuspended      Boolean   @default(false)
+  suspensionReason String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  memberships              OrganisationMembership[]
+  volunteerProfile         VolunteerProfile?
+  verificationsReviewed    OrganisationVerification[] @relation("ReviewedVerifications")
+  donationsCreated         Donation[]
+  assignments              Assignment[]
+  assignmentOffers         AssignmentOffer[]
+  handoverChallengesCreated HandoverChallenge[]
+  handoverEvents           HandoverEvent[]
+  notifications            Notification[]
+  incidentsReported        Incident[]                 @relation("ReportedIncidents")
+  incidentsResolved        Incident[]                 @relation("ResolvedIncidents")
+  auditEvents              AuditEvent[]
+
+  @@map("users")
+}
+
+model Organisation {
+  id                  String   @id @default(uuid())
+  name                String
+  type                OrgType
+  description         String?
+  address             String
+  latitude            Float
+  longitude           Float
+  operatingHoursStart String   @default("08:00") // 24-hr format HH:mm
+  operatingHoursEnd   String   @default("22:00")
+  collectionRadiusKm  Float    @default(15.0)    // For NGOs
+  acceptedCategories  String   @default("[]")    // JSON array of FoodCategory string values
+  isVerified          Boolean  @default(false)
+  isSuspended         Boolean  @default(false)
+  suspensionReason    String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  memberships      OrganisationMembership[]
+  verifications    OrganisationVerification[]
+  capacityWindows  CapacityWindow[]
+  donations        Donation[]
+  allocations      Allocation[]
+
+  @@map("organisations")
+}
+
+model OrganisationMembership {
+  id             String       @id @default(uuid())
+  userId         String
+  organisationId String
+  roleInOrg      String       @default("MEMBER") // OWNER, ADMIN, MEMBER
+  createdAt      DateTime     @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+  @@map("organisation_memberships")
+}
+
+model OrganisationVerification {
+  id                 String             @id @default(uuid())
+  organisationId     String
+  documentType       String             // e.g. 80G_CERTIFICATE, FSSAI_REGISTRATION, TRUST_DEED
+  documentNumber     String
+  verificationStatus VerificationStatus @default(PENDING)
+  reviewedByUserId   String?
+  reviewNotes        String?
+  reviewedAt         DateTime?
+  createdAt          DateTime           @default(now())
+
+  organisation       Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  reviewer           User?              @relation("ReviewedVerifications", fields: [reviewedByUserId], references: [id])
+
+  @@map("organisation_verifications")
+}
+
+model VolunteerProfile {
+  id                     String       @id @default(uuid())
+  userId                 String       @unique
+  isAvailable            Boolean      @default(true)
+  maxCarryingCapacity    Int          @default(60) // positive integer base units
+  capacityUnit           QuantityUnit @default(SERVINGS)
+  operatingRadiusKm      Float        @default(15.0)
+  latitude               Float        @default(12.9716) // Default coordinate (e.g. Bengaluru center)
+  longitude              Float        @default(77.5946)
+  vehicleType            String       @default("TWO_WHEELER") // TWO_WHEELER, FOUR_WHEELER, ON_FOOT
+  activeAssignmentsCount Int          @default(0)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("volunteer_profiles")
+}
+
+model CapacityWindow {
+  id               String       @id @default(uuid())
+  organisationId   String
+  startTime        DateTime
+  endTime          DateTime
+  unit             QuantityUnit @default(SERVINGS)
+  maxCapacity      Int
+  reservedCapacity Int          @default(0)
+  receivedCapacity Int          @default(0)
+  notes            String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  organisation     Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  allocations      Allocation[]
+
+  @@map("capacity_windows")
+}
+
+model Donation {
+  id                 String         @id @default(uuid())
+  donorOrgId         String
+  createdByUserId    String
+  title              String
+  foodCategory       FoodCategory
+  dietaryTags        String         @default("[]") // JSON string: ["VEGETARIAN", "VEGAN", etc.]
+  ingredients        String?
+  allergens          String         @default("[\"UNKNOWN\"]") // JSON string, explicit ["UNKNOWN"] or list
+  storageInfo        StorageInfo    @default(AMBIENT)
+  packagingInfo      PackagingInfo  @default(SEALED_CONTAINERS)
+  preparationTime    DateTime?
+  pickupAddress      String
+  latitude           Float
+  longitude          Float
+  pickupWindowStart  DateTime
+  pickupWindowEnd    DateTime       // Collection deadline
+  handlingNotes      String?
+  photoUrl           String?
+  status             DonationStatus @default(DRAFT)
+  cancellationReason String?
+  cancelledAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  donorOrg           Organisation   @relation(fields: [donorOrgId], references: [id])
+  createdByUser      User           @relation(fields: [createdByUserId], references: [id])
+  items              DonationItem[]
+  allocations        Allocation[]
+
+  @@map("donations")
+}
+
+model DonationItem {
+  id                String       @id @default(uuid())
+  donationId        String
+  name              String
+  quantity          Int          // Total available integer base units
+  unit              QuantityUnit
+  estimatedServings Int?         // Optional donor-entered estimated serving count
+  allocatedQuantity Int          @default(0)
+  collectedQuantity Int          @default(0)
+  deliveredQuantity Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  donation          Donation     @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  allocations       Allocation[]
+
+  @@map("donation_items")
+}
+
+model Allocation {
+  id                  String           @id @default(uuid())
+  donationId          String
+  donationItemId      String
+  ngoOrgId            String
+  capacityWindowId    String?
+  allocatedQuantity   Int              // Positive integer base units
+  unit                QuantityUnit
+  status              AllocationStatus @default(ACCEPTED)
+  snapshotItemDetails String           // JSON snapshot of item at confirmation time
+  collectedQuantity   Int?
+  deliveredQuantity   Int?
+  rejectedQuantity    Int?
+  rejectionReason     String?
+  cancellationReason  String?
+  cancelledAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  donation            Donation         @relation(fields: [donationId], references: [id])
+  donationItem        DonationItem     @relation(fields: [donationItemId], references: [id])
+  ngoOrg              Organisation     @relation(fields: [ngoOrgId], references: [id])
+  capacityWindow      CapacityWindow?  @relation(fields: [capacityWindowId], references: [id])
+  assignments         Assignment[]
+  handoverChallenges  HandoverChallenge[]
+  handoverEvents      HandoverEvent[]
+  incidents           Incident[]
+
+  @@map("allocations")
+}
+
+model Assignment {
+  id                 String           @id @default(uuid())
+  allocationId       String
+  volunteerUserId    String
+  status             AssignmentStatus @default(OFFERED)
+  isCurrent          Boolean          @default(true) // retained history when replaced by backup
+  offerExpiresAt     DateTime
+  acceptedAt         DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  failureReason      String?
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  allocation         Allocation       @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  volunteer          User             @relation(fields: [volunteerUserId], references: [id])
+  offers             AssignmentOffer[]
+
+  @@map("assignments")
+}
+
+model AssignmentOffer {
+  id              String      @id @default(uuid())
+  assignmentId    String
+  volunteerUserId String
+  status          OfferStatus @default(PENDING)
+  expiresAt       DateTime
+  respondedAt     DateTime?
+  createdAt       DateTime    @default(now())
+
+  assignment      Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  volunteer       User        @relation(fields: [volunteerUserId], references: [id])
+
+  @@map("assignment_offers")
+}
+
+model HandoverChallenge {
+  id               String        @id @default(uuid())
+  allocationId     String
+  stage            HandoverStage // COLLECTION, DELIVERY
+  challengeType    String        @default("OTP")
+  secretHash       String        // bcrypt hash of OTP
+  plaintextForDemo String?       // ONLY present if DEMO_MODE=true
+  expiresAt        DateTime
+  attemptCount     Int           @default(0)
+  maxAttempts      Int           @default(5)
+  isVerified       Boolean       @default(false)
+  verifiedAt       DateTime?
+  createdByUserId  String
+  createdAt        DateTime      @default(now())
+
+  allocation       Allocation    @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  createdBy        User          @relation(fields: [createdByUserId], references: [id])
+
+  @@map("handover_challenges")
+}
+
+model HandoverEvent {
+  id                 String        @id @default(uuid())
+  allocationId       String
+  stage              HandoverStage
+  actorUserId        String
+  verifiedQuantity   Int
+  rejectedQuantity   Int           @default(0)
+  rejectionReason    String?
+  inspectionNotes    String?
+  foodSafetyFlagged  Boolean       @default(false)
+  foodSafetyNotes    String?
+  timestamp          DateTime      @default(now())
+
+  allocation         Allocation    @relation(fields: [allocationId], references: [id], onDelete: Cascade)
+  actor              User          @relation(fields: [actorUserId], references: [id])
+
+  @@map("handover_events")
+}
+
+model Notification {
+  id               String           @id @default(uuid())
+  userId           String
+  title            String
+  message          String
+  type             NotificationType @default(INFO)
+  isRead           Boolean          @default(false)
+  simulatedChannel String           @default("IN_APP")
+  metadata         String?          // JSON metadata
+  createdAt        DateTime         @default(now())
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Incident {
+  id              String           @id @default(uuid())
+  allocationId    String?
+  reporterUserId  String
+  title           String
+  description     String
+  severity        IncidentSeverity @default(MEDIUM)
+  status          IncidentStatus   @default(OPEN)
+  resolutionNotes String?
+  resolvedByUserId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  allocation      Allocation?      @relation(fields: [allocationId], references: [id])
+  reporter        User             @relation("ReportedIncidents", fields: [reporterUserId], references: [id])
+  resolver        User?            @relation("ResolvedIncidents", fields: [resolvedByUserId], references: [id])
+
+  @@map("incidents")
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  reason      String?  // Mandatory for admin overrides
+  details     String?  // JSON
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+
+  @@map("audit_events")
+}
