@@ -8,6 +8,7 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
   let testItemId: string;
   let testNgoId: string;
   let testCapacityWindowId: string;
+  let originalCapacityWindow: { maxCapacity: number; reservedCapacity: number };
   let testUserId: string;
 
   beforeAll(async () => {
@@ -20,7 +21,18 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
       include: { capacityWindows: true },
     });
     testNgoId = ngo!.id;
-    testCapacityWindowId = ngo!.capacityWindows[0]?.id;
+    const servingsWindow = ngo!.capacityWindows.find((window) => window.unit === "SERVINGS");
+    testCapacityWindowId = servingsWindow!.id;
+    originalCapacityWindow = {
+      maxCapacity: servingsWindow!.maxCapacity,
+      reservedCapacity: servingsWindow!.reservedCapacity,
+    };
+    await prisma.capacityWindow.update({
+      where: { id: testCapacityWindowId },
+      data: {
+        maxCapacity: Math.max(servingsWindow!.maxCapacity, servingsWindow!.reservedCapacity + 100),
+      },
+    });
 
     // Create a dedicated test donation with 100 servings
     const donor = await prisma.organisation.findFirst({ where: { type: "DONOR" } });
@@ -70,6 +82,10 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
     await prisma.donation.delete({
       where: { id: testDonationId },
     });
+    await prisma.capacityWindow.update({
+      where: { id: testCapacityWindowId },
+      data: originalCapacityWindow,
+    });
   });
 
   it("splits a 100-portion donation with a partial acceptance of 60 portions", async () => {
@@ -84,7 +100,7 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
     });
 
     expect(allocation.allocatedQuantity).toBe(60);
-    expect(allocation.status).toBe("ACCEPTED");
+    expect(allocation.status).toBe("AWAITING_VOLUNTEER");
 
     // Verify donation item updated
     const item = await prisma.donationItem.findUnique({ where: { id: testItemId } });
@@ -127,7 +143,10 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
 
   it("cancelling an uncollected allocation releases reserved capacity and inventory", async () => {
     const allocs = await prisma.allocation.findMany({
-      where: { donationId: testDonationId, status: "ACCEPTED" },
+      where: {
+        donationId: testDonationId,
+        status: { in: ["ACCEPTED", "AWAITING_VOLUNTEER"] },
+      },
     });
     const targetAlloc = allocs[0];
 
@@ -175,4 +194,3 @@ describe("Transactional Split Allocation & Inventory Isolation", () => {
     await prisma.allocation.delete({ where: { id: collectedAlloc.id } });
   });
 });
-

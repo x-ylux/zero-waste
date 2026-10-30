@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Allocation, DonationStatus, AllocationStatus, QuantityUnit } from "@prisma/client";
+import { assertAllocationTransition, assertDonationTransition } from "@/lib/domain/status-transitions";
+import { RecoveryWorker } from "@/lib/recovery/worker";
 
 export interface CreateAllocationRequest {
   donationId: string;
@@ -10,6 +12,7 @@ export interface CreateAllocationRequest {
   capacityWindowId?: string | null;
   actorUserId: string;
   idempotencyKey?: string;
+  dispatchVolunteer?: boolean;
 }
 
 export interface CancelAllocationRequest {
@@ -30,7 +33,7 @@ export class AllocationService {
       throw new Error("INVALID_QUANTITY: Allocation quantity must be greater than zero.");
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const allocation = await prisma.$transaction(async (tx) => {
       // 1. Fetch donation and verify open status
       const donation = await tx.donation.findUnique({
         where: { id: input.donationId },
@@ -50,7 +53,7 @@ export class AllocationService {
         );
       }
 
-      if (new Date(donation.pickupWindowEnd) < new Date()) {
+      if (new Date(donation.pickupWindowEnd).getTime() <= Date.now()) {
         throw new Error("EXPIRED: The collection deadline for this donation has passed.");
       }
 
@@ -111,47 +114,58 @@ export class AllocationService {
         }
       }
 
-      if (capacityWindowId) {
-        const capacityWindow = await tx.capacityWindow.findUnique({
-          where: { id: capacityWindowId },
-        });
+      if (!capacityWindowId) {
+        throw new Error("NO_CAPACITY_WINDOW: No declared capacity window has enough remaining capacity.");
+      }
 
-        if (!capacityWindow) {
-          throw new Error("NOT_FOUND: Specified capacity window does not exist.");
-        }
+      const capacityWindow = ngo.capacityWindows.find(
+        (window) => window.id === capacityWindowId
+      );
+      if (!capacityWindow) {
+        throw new Error("INVALID_CAPACITY_WINDOW: Capacity window must belong to this NGO, unit, and pickup period.");
+      }
 
-        const remainingCapacity = capacityWindow.maxCapacity - capacityWindow.reservedCapacity;
-        if (input.allocatedQuantity > remainingCapacity) {
-          throw new Error(
-            `CAPACITY_EXCEEDED: Requested ${input.allocatedQuantity} ${input.unit}, but capacity window only has ${remainingCapacity} available.`
-          );
-        }
-
-        // Atomically reserve capacity in the window
-        await tx.capacityWindow.update({
-          where: { id: capacityWindowId },
-          data: {
-            reservedCapacity: {
-              increment: input.allocatedQuantity,
-            },
+      const reserved = await tx.capacityWindow.updateMany({
+        where: {
+          id: capacityWindowId,
+          reservedCapacity: {
+            lte: capacityWindow.maxCapacity - input.allocatedQuantity,
           },
-        });
+        },
+        data: {
+          reservedCapacity: { increment: input.allocatedQuantity },
+        },
+      });
+      if (reserved.count !== 1) {
+        throw new Error("CAPACITY_EXCEEDED: Capacity window no longer has enough available capacity.");
       }
 
       // 4. Atomically increment allocated quantity on the donation item
-      const updatedItem = await tx.donationItem.update({
-        where: { id: item.id },
+      const inventoryReservation = await tx.donationItem.updateMany({
+        where: {
+          id: item.id,
+          allocatedQuantity: { lte: item.quantity - input.allocatedQuantity },
+        },
         data: {
           allocatedQuantity: {
             increment: input.allocatedQuantity,
           },
         },
       });
+      if (inventoryReservation.count !== 1) {
+        throw new Error("OVER_ALLOCATION: Requested quantity exceeds the remaining donation inventory.");
+      }
+
+      const updatedItem = await tx.donationItem.findUnique({ where: { id: item.id } });
+      if (!updatedItem) {
+        throw new Error("NOT_FOUND: Donation item disappeared after reservation.");
+      }
 
       // 5. Update Donation aggregate status
       const totalRemaining = updatedItem.quantity - updatedItem.allocatedQuantity;
       const newDonationStatus: DonationStatus =
         totalRemaining === 0 ? "FULLY_ALLOCATED" : "PARTIALLY_ALLOCATED";
+      assertDonationTransition(donation.status, newDonationStatus);
 
       await tx.donation.update({
         where: { id: donation.id },
@@ -220,6 +234,20 @@ export class AllocationService {
 
       return allocation;
     });
+
+    if (input.dispatchVolunteer !== false) {
+      await RecoveryWorker.findAndAssignBackupVolunteer(
+        allocation.id,
+        "Initial volunteer dispatch after NGO reservation."
+      );
+    }
+    const updatedAllocation = await prisma.allocation.findUnique({
+      where: { id: allocation.id },
+    });
+    if (!updatedAllocation) {
+      throw new Error("NOT_FOUND: Allocation disappeared after creation.");
+    }
+    return updatedAllocation;
   }
 
   /**
@@ -262,6 +290,7 @@ export class AllocationService {
       if (allocation.status === "CANCELLED") {
         return allocation; // idempotent
       }
+      assertAllocationTransition(allocation.status, "CANCELLED");
 
       // 1. Release reserved capacity in NGO window
       if (allocation.capacityWindowId) {
@@ -291,6 +320,7 @@ export class AllocationService {
       if (updatedItem.allocatedQuantity === 0) {
         newDonationStatus = "OPEN";
       }
+      assertDonationTransition(allocation.donation.status, newDonationStatus);
 
       await tx.donation.update({
         where: { id: allocation.donationId },
@@ -339,4 +369,3 @@ export class AllocationService {
     });
   }
 }
-

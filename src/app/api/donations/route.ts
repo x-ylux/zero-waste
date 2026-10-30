@@ -9,12 +9,19 @@ export async function GET(req: Request) {
     const status = searchParams.get("status");
     const donorOrgId = searchParams.get("donorOrgId");
     const category = searchParams.get("category");
+    const active = searchParams.get("active") === "true";
 
     const donations = await prisma.donation.findMany({
       where: {
         ...(status ? { status: status as any } : {}),
         ...(donorOrgId ? { donorOrgId } : {}),
         ...(category ? { foodCategory: category as any } : {}),
+        ...(active
+          ? {
+              status: { in: ["OPEN", "PARTIALLY_ALLOCATED"] as const },
+              pickupWindowEnd: { gt: new Date() },
+            }
+          : {}),
       },
       include: {
         donorOrg: true,
@@ -128,4 +135,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 
 describe("Handover OTP Challenges & Cryptographic Verification", () => {
   let testAllocationId: string;
+  let testDonationItemId: string;
   let testUserId: string;
 
   beforeAll(async () => {
@@ -53,6 +54,7 @@ describe("Handover OTP Challenges & Cryptographic Verification", () => {
     });
 
     testAllocationId = alloc.id;
+    testDonationItemId = donation.items[0].id;
   });
 
   afterAll(async () => {
@@ -148,6 +150,18 @@ describe("Handover OTP Challenges & Cryptographic Verification", () => {
       actorUserId: testUserId,
     });
 
+    await expect(
+      HandoverService.verifyChallenge({
+        allocationId: testAllocationId,
+        stage: "DELIVERY",
+        otp: deliveryChallenge.demoCode!,
+        verifiedQuantity: 48,
+        rejectedQuantity: 1,
+        rejectionReason: "One rejected container.",
+        actorUserId: testUserId,
+      })
+    ).rejects.toThrow(/must reconcile to the collected quantity/);
+
     // NGO accepts 48, rejects 2 due to seal damage
     const result = await HandoverService.verifyChallenge({
       allocationId: testAllocationId,
@@ -169,5 +183,38 @@ describe("Handover OTP Challenges & Cryptographic Verification", () => {
     expect(alloc!.rejectedQuantity).toBe(2);
     expect(alloc!.rejectionReason).toBe("Broken seal on 2 container lids during transport.");
   });
-});
 
+  it("does not double-count a completed handover when its challenge is submitted again", async () => {
+    const challenge = await prisma.handoverChallenge.findFirst({
+      where: { allocationId: testAllocationId, stage: "DELIVERY", isVerified: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const itemBefore = await prisma.donationItem.findUnique({
+      where: { id: testDonationItemId },
+    });
+    const eventCountBefore = await prisma.handoverEvent.count({
+      where: { allocationId: testAllocationId, stage: "DELIVERY" },
+    });
+
+    await expect(
+      HandoverService.verifyChallenge({
+        allocationId: testAllocationId,
+        stage: "DELIVERY",
+        otp: challenge!.plaintextForDemo!,
+        verifiedQuantity: 48,
+        rejectedQuantity: 2,
+        rejectionReason: "Broken seal on 2 container lids during transport.",
+        actorUserId: testUserId,
+      })
+    ).rejects.toThrow(/No active handover challenge found|already been verified/);
+
+    const itemAfter = await prisma.donationItem.findUnique({
+      where: { id: testDonationItemId },
+    });
+    const eventCountAfter = await prisma.handoverEvent.count({
+      where: { allocationId: testAllocationId, stage: "DELIVERY" },
+    });
+    expect(itemAfter!.deliveredQuantity).toBe(itemBefore!.deliveredQuantity);
+    expect(eventCountAfter).toBe(eventCountBefore);
+  });
+});

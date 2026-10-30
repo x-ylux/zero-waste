@@ -287,10 +287,11 @@ export default function VolunteerAssignmentsPage() {
 
             <form onSubmit={handleCancelAssignment} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="cancellation-reason" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                   Mandatory Cancellation Reason (Min 5 chars) *
                 </label>
                 <textarea
+                  id="cancellation-reason"
                   required
                   rows={3}
                   value={cancellationReason}
@@ -323,4 +324,3 @@ export default function VolunteerAssignmentsPage() {
     </div>
   );
 }
-

@@ -15,6 +15,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { isActiveDonationListing } from "@/lib/donations/listing";
+import { DonationStatusType } from "@/lib/types/domain";
 
 export default function NgoDiscoverPage() {
   const [donations, setDonations] = useState<any[]>([]);
@@ -31,14 +33,14 @@ export default function NgoDiscoverPage() {
   const fetchDonations = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/donations");
-      const data = await res.json();
+      const res = await fetch("/api/donations?active=true");
+      const data: {
+        donations?: Array<{ status: DonationStatusType; pickupWindowEnd: string }>;
+      } = await res.json();
       if (data.donations) {
-        // Show open or partially allocated donations first
-        const openList = data.donations.filter(
-          (d: any) => d.status === "OPEN" || d.status === "PARTIALLY_ALLOCATED"
+        setDonations(
+          data.donations.filter((donation) => isActiveDonationListing(donation))
         );
-        setDonations(openList);
       }
     } catch (err) {
       console.error("Failed to load donations", err);
@@ -331,4 +333,3 @@ export default function NgoDiscoverPage() {
     </div>
   );
 }
-

@@ -31,10 +31,21 @@ const DEMO_PERSONAS = [
   { label: "Admin: Radha Krishnan", email: "admin@rescueplate.org", role: "ADMIN" },
   { label: "Donor: Suresh Patil (Mess Manager)", email: "donor.mess@rescueplate.org", role: "DONOR" },
   { label: "Donor: Vikram Singhania (Head Chef)", email: "donor.caterer@rescueplate.org", role: "DONOR" },
+  { label: "Donor: Ananya Deshmukh (Restaurant & Bakery)", email: "donor.bistro@rescueplate.org", role: "DONOR" },
+  { label: "Donor: Riya Menon (Restaurant)", email: "donor.restaurant@rescueplate.org", role: "DONOR" },
+  { label: "Donor: Ramesh Iyer (Commissary)", email: "donor.commissary@rescueplate.org", role: "DONOR" },
   { label: "NGO: Sister Teresa (Annapurna Kendra)", email: "ngo.annapurna@rescueplate.org", role: "NGO" },
   { label: "NGO: Devendra Hegde (Hunger Relief)", email: "ngo.hungerrelief@rescueplate.org", role: "NGO" },
+  { label: "NGO: Kavita Rao (Sneha Shelter)", email: "ngo.sneha@rescueplate.org", role: "NGO" },
+  { label: "NGO: Farah Khan (Sahaara Pantry)", email: "ngo.sahaara@rescueplate.org", role: "NGO" },
   { label: "Volunteer: Aarav Sharma (Primary)", email: "vol.aarav@rescueplate.org", role: "VOLUNTEER" },
   { label: "Volunteer: Priya Venkatesh (Backup)", email: "vol.priya@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Karthik Rao (HSR)", email: "vol.karthik@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Meera Nair (Indiranagar)", email: "vol.meera@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Farah Khan (On Foot)", email: "vol.farah@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Dev Narayan (Produce)", email: "vol.dev@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Isha Kulkarni (Packets)", email: "vol.isha@rescueplate.org", role: "VOLUNTEER" },
+  { label: "Volunteer: Rohan Shetty (Four Wheeler)", email: "vol.rohan@rescueplate.org", role: "VOLUNTEER" },
 ];
 
 export function Navbar({ currentUser }: NavbarProps) {
@@ -276,4 +287,3 @@ export function Navbar({ currentUser }: NavbarProps) {
     </nav>
   );
 }
-

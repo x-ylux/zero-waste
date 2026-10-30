@@ -1,210 +1,92 @@
 # RescuePlate
 
-> **Capacity-Aware Surplus Food Redistribution Platform**
-> Built for Food Donors, Recipient NGOs, and Volunteer Runners.
+RescuePlate is a Bengaluru-focused surplus-food rescue demo for donors, recipient NGOs, and volunteer runners. It demonstrates capacity-aware matching, split allocations, backup dispatch after cancellation, verified pickup/delivery handoffs, and unit-safe impact metrics.
 
-RescuePlate solves the fundamental failure modes of surplus food redistribution:
-1. **Capacity-Aware NGO Matching:** Validates candidate NGOs against verified operating hours, declared storage capacity windows, and collection radii. Missing capacity is never treated as unlimited.
-2. **Transactional Split Allocation:** Safely divides large surplus batches (e.g., 100 meals split 60/40 across two NGOs) with atomic database locking to prevent concurrent over-booking.
-3. **Durable Failed-Pickup Recovery:** Preserves volunteer assignment history on dropout or timeout and automatically locates and dispatches offers to eligible backup runners without losing track of custody.
-4. **Verified Handover Auditing:** Reconciles physical collection and delivery via cryptographically hashed 6-digit challenge codes, separately tracking accepted vs. rejected quantities.
+## Stack and structure
 
----
+- Next.js 14 App Router and strict TypeScript.
+- PostgreSQL with PostGIS, modeled and migrated through Prisma (`prisma/schema.prisma`, `prisma/migrations/`).
+- Matching has a typed repository contract with a Prisma-backed implementation and an in-memory mock (`src/lib/matching/repository.ts`).
+- The PostgreSQL migration enables PostGIS, stores trigger-synchronized `geography(Point,4326)` locations for organizations, donations, and volunteers, and adds GIST indexes for future spatial queries.
+- Allocation, recovery, handover, and impact logic live in typed services under `src/lib/`.
+- Vitest unit/integration suites and Playwright browser tests are under `tests/`.
 
-## Technical Stack
+The mock matching repository is intended for fast deterministic rule tests; interactive application state is persisted in PostgreSQL. Current matching still uses the documented Haversine route adapter rather than querying PostGIS.
 
-- **Framework:** Next.js 14 (App Router, Server Components & Route Handlers)
-- **Language:** TypeScript (Strict mode enabled)
-- **Styling:** Tailwind CSS with accessible contrast and custom warm cream/emerald palette
-- **Database:** PostgreSQL with PostGIS extension (`postgis/postgis:16-3.4` container)
-- **ORM & Migrations:** Prisma ORM 5 with SQL migrations (`prisma/migrations/20261030000000_init/migration.sql`)
-- **Validation:** Zod schemas for server-side input and state validation
-- **Authentication:** Database-backed sessions with signed HMAC-SHA256 tokens (`jose`) & bcrypt password hashing
-- **Map & Routing:** Clean `IMapAdapter` interface with Haversine distance and straight-line urban travel estimation fallback (clearly labeled as demonstration estimates)
-- **Background Worker:** Database-backed `RecoveryWorker` for idempotent timeout processing and backup dispatching
-- **Testing:** Vitest for unit & integration test suites; Playwright for end-to-end browser workflows
+## Run locally
 
----
+### Prerequisites
 
-## Architecture Overview
+- Node.js 18 or newer and npm.
+- Docker Desktop (or a PostgreSQL 16 server with PostGIS enabled).
 
-```
-                            ┌────────────────────────┐
-                            │    RescuePlate Web     │
-                            │   (Next.js App Router) │
-                            └───────────┬────────────┘
-                                        │
-           ┌────────────────────────────┼───────────────────────────┐
-           │                            │                           │
-┌──────────▼──────────┐     ┌───────────▼───────────┐   ┌───────────▼───────────┐
-│   Donor Portal      │     │      NGO Portal       │   │   Volunteer Dispatch  │
-│  - Publish Batches  │     │ - Capacity Windows    │   │ - Pickup Offers       │
-│  - Collection OTPs  │     │ - Atomic Split Claims │   │ - Recovery / Backup   │
-└──────────┬──────────┘     └───────────┬───────────┘   └───────────┬───────────┘
-           │                            │                           │
-           └────────────────────────────┼───────────────────────────┘
-                                        │
-                 ┌──────────────────────▼──────────────────────┐
-                 │       Deterministic Engine & Services       │
-                 │ - MatchingEngine (Capacity & Hours Checks)  │
-                 │ - AllocationService (Transactional Locks)   │
-                 │ - HandoverService (Bcrypt OTP Verification) │
-                 │ - RecoveryWorker (Backup Volunteer Engine)  │
-                 │ - ImpactCalculator (Separate Units Accounting)│
-                 └──────────────────────┬──────────────────────┘
-                                        │
-                 ┌──────────────────────▼──────────────────────┐
-                 │    PostgreSQL + PostGIS (Docker Container)   │
-                 │    16 Relational Tables & Audit Ledger      │
-                 └─────────────────────────────────────────────┘
+### Install and configure
+
+```powershell
+npm ci
+Copy-Item .env.example .env
 ```
 
----
+For the bundled local database, start the container and set `DATABASE_URL` in `.env` to:
 
-## Quick Start & Setup Instructions
-
-### 1. Prerequisites
-- **Node.js:** v18+ (tested on v24.16.0)
-- **Docker & Docker Compose:** For running local PostgreSQL with PostGIS
-
-### 2. Environment Variables
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Default configuration values in `.env`:
 ```env
 DATABASE_URL="postgresql://rescueplate:rescueplate_password@localhost:5432/rescueplate_db?schema=public"
-NODE_ENV="development"
-DEMO_MODE="true"
-SESSION_SECRET="rescueplate-super-secure-session-secret-key-at-least-32-chars-long"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-DEFAULT_TIMEZONE="Asia/Kolkata"
-GEO_PROVIDER="adapter_fallback"
-GOOGLE_MAPS_API_KEY=""
-CO2_FACTOR_ENABLED="false"
-CO2_FACTOR_PER_KG="2.5"
-CO2_FACTOR_SOURCE="UN FAO Food Wastage Footprint / WRI Protocol (Simulated benchmark)"
-NOTIFICATION_PROVIDER="in_app"
 ```
 
-### 3. Start Database (PostgreSQL + PostGIS)
-Start the PostgreSQL container via Docker Compose:
-```bash
-docker compose up -d
-```
-Verify container status:
-```bash
-docker ps --filter "name=rescueplate-postgres"
-```
+That user/password pair is only the local Docker Compose demo credential; replace it for any shared or deployed database. Set `SESSION_SECRET` to a unique random value of at least 32 characters. Do not commit `.env` or production credentials.
 
-### 4. Install Dependencies
-```bash
-npm install
-```
+### Initialize and run
 
-### 5. Initialize Schema & Seed Synthetic City Data
-Push the schema to the database and generate the Prisma Client:
-```bash
-npx prisma db push
-```
-Seed synthetic test data for Bengaluru (3 donors, 3 NGOs, 4 volunteers, 1 admin):
-```bash
+```powershell
+npm run db:up
+npx prisma migrate deploy
+npx prisma generate
 npm run db:seed
-```
-
-### 6. Run the Next.js Development Server
-```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
+These migration commands target a fresh database. If you are reusing a database previously initialized with `prisma db push`, first verify and baseline its migration history (or use a new database); do not run `migrate deploy` against an unbaselined existing schema.
 
-## Test Suites & Verification
+Open [http://localhost:3000](http://localhost:3000). For a clean restore of the synthetic dataset, sign in as the admin and use **Demo Controls → Reset Demo Data**. Reset removes donations and related operational records for the five synthetic donor organizations, then recreates the baseline data. It does not erase unrelated organizations or user accounts.
 
-### Unit & Integration Tests (Vitest)
-Executes all 6 test suites covering matching, atomic split allocations, overbooking prevention, OTP hashing, failed-pickup recovery, and metrics reconciliation:
-```bash
-npm run test
-```
+### Demo accounts
 
-### Run Background Worker Locally
-Executes the database-backed recovery worker to scan for expired offers, time them out, and dispatch backup volunteers:
-```bash
-npm run worker:run
-```
+All seeded demo accounts use `Password123!`. Use the persona switcher on the login screen:
 
-### Production Build Check
-Verifies Next.js App Router static compilation and strict TypeScript types:
-```bash
+- Admin: `admin@rescueplate.org`
+- Donors: `donor.mess@rescueplate.org` (campus mess), `donor.caterer@rescueplate.org`, `donor.bistro@rescueplate.org`, `donor.restaurant@rescueplate.org`, `donor.commissary@rescueplate.org`
+- NGOs: `ngo.annapurna@rescueplate.org`, `ngo.hungerrelief@rescueplate.org`, `ngo.sneha@rescueplate.org`, `ngo.sahaara@rescueplate.org`
+- Volunteers: `vol.aarav@rescueplate.org`, `vol.priya@rescueplate.org`, `vol.karthik@rescueplate.org`, `vol.meera@rescueplate.org`, `vol.farah@rescueplate.org`, `vol.dev@rescueplate.org`, `vol.isha@rescueplate.org`, `vol.rohan@rescueplate.org`
+
+## End-to-end walkthrough
+
+1. Sign in as `donor.mess@rescueplate.org`; open **Publish Surplus Food Batch** and create a donation. The form starts with a pickup window relative to the current time; keep it in the future.
+2. Open the donation details page to review ranked NGO matches and the reasons that candidates are excluded. Sign in as an NGO and reserve a quantity from **Discover & Accept Surplus Food**.
+3. The reservation checks remaining inventory and a declared capacity window, then dispatches a pickup offer to an eligible available volunteer.
+4. Sign in as that volunteer and accept the offer in **Assigned Pickups & Active Offers**. Cancel before pickup to trigger Rescue Mode. The cancelled assignment remains in history, and the next eligible standby volunteer receives an offer.
+5. Sign in as the standby volunteer, accept the offer, and open the handover link. Generate and verify the collection challenge to confirm pickup.
+6. Sign in as the recipient NGO and verify the delivery challenge, entering accepted and rejected quantities (and a reason for rejected food). The donation item and impact dashboard update from the recorded handoff.
+7. Check `/impact` for listed, allocated, collected, accepted-delivery, rejected-delivery, and recovery metrics. SERVINGS, KG, PACKETS, and BOXES remain separate; handover challenges and database uniqueness constraints prevent duplicate completion from being counted twice.
+
+The baseline contains five donors, four NGOs with different food needs and receiving capacities, eight volunteers with varied availability and transport capacity, and twelve donations across active, partially allocated, assigned, expired, rejected, and completed states. Completed scenarios include collection/delivery event history and a completed backup rescue.
+
+## Validation commands
+
+```powershell
+npx tsc --noEmit
+npm run lint
+npm test
 npm run build
+npm run test:e2e
 ```
 
----
+Database-backed tests require the local PostgreSQL/PostGIS service and a seeded database. Playwright tests require the app server and baseline demo accounts.
 
-## Deterministic Hackathon Demo Walkthrough
+## Mocked integrations and production limitations
 
-RescuePlate includes a persistent **Admin Demo Control Panel** (visible via the top banner in `DEMO_MODE`) and a **Quick Persona Switcher** in the navigation header.
-
-### Target Scenario:
-1. **Campus Mess Lists 100 Portions:**
-   - Sign in as **Suresh Patil** (`donor.mess@rescueplate.org`).
-   - Navigate to `/donor` to see the listed donation: *Campus Lunch Surplus (100 servings)*.
-2. **Deterministic 60/40 Split Across Two NGOs:**
-   - Click **Demo Controls** in the top banner and click **Step 1: Stage Campus Split Allocation**.
-   - Annapurna Seva Kendra accepts **60 servings** (matching its 60-portion capacity window).
-   - Bengaluru Hunger Relief accepts **40 servings** (matching its 40-portion capacity window).
-   - Volunteer **Aarav Sharma** accepts the assignment for Annapurna's 60 portions.
-3. **Volunteer Dropout & Automatic Backup Recovery:**
-   - Click **Step 2: Trigger Volunteer Cancellation** (Simulates Aarav having a flat tire).
-   - Notice that Aarav's assignment is preserved as `CANCELLED` with reason `"Motorcycle flat tire on Outer Ring Road."`
-   - The system automatically evaluates available volunteers within range and dispatches an offer to **Priya Venkatesh** (`vol.priya@rescueplate.org`).
-4. **Backup Volunteer Acceptance:**
-   - Click **Step 3: Backup Volunteer Accepts Offer** (or switch to Priya and click Accept).
-   - Allocation status updates to `ASSIGNED`.
-5. **Collection & Delivery Verification (OTP Handover):**
-   - Navigate to `/handover/<allocationAId>`.
-   - Click **Generate 6-Digit Challenge**. In demo mode, the code is highlighted in the helper box (e.g. `839102`).
-   - Click **Verify & Commit COLLECTION Handover**. Verified quantity: 60 servings. Allocation updates to `COLLECTED`.
-   - In stage 2 (DELIVERY), enter the NGO challenge, record 58 accepted, 2 rejected (reason: `"Broken container lid during transport"`), and submit.
-   - Allocation status updates to `PARTIALLY_DELIVERED`.
-6. **Operational Impact Dashboard:**
-   - Visit `/impact` to inspect the reconciled metrics:
-     - Listed: 100 servings
-     - Allocated: 100 servings
-     - Collected: 60 servings
-     - Delivered Accepted: 58 servings
-     - Delivered Rejected: 2 servings
-     - Uncollected: 40 servings
-     - Pickup completion rate with explicit denominator shown.
-
----
-
-## Pre-Seeded Demonstration Personas
-
-All accounts use the password: `Password123!`
-
-| Persona | Role | Organisation | Email |
-|---|---|---|---|
-| **Radha Krishnan** | ADMIN | System Administrator | `admin@rescueplate.org` |
-| **Suresh Patil** | DONOR | Apex Campus Mess (Koramangala) | `donor.mess@rescueplate.org` |
-| **Vikram Singhania** | DONOR | Grand Pavilion Banquets (Indiranagar) | `donor.caterer@rescueplate.org` |
-| **Ananya Deshmukh** | DONOR | GreenHarvest Bistro (MG Road) | `donor.bistro@rescueplate.org` |
-| **Sister Teresa** | NGO | Annapurna Seva Kendra (Koramangala) | `ngo.annapurna@rescueplate.org` |
-| **Devendra Hegde** | NGO | Bengaluru Hunger Relief (HSR Layout) | `ngo.hungerrelief@rescueplate.org` |
-| **Kavita Rao** | NGO | Sneha Shelter Foundation (Domlur) | `ngo.sneha@rescueplate.org` |
-| **Aarav Sharma** | VOLUNTEER | Two-Wheeler Runner (Koramangala) | `vol.aarav@rescueplate.org` |
-| **Priya Venkatesh** | VOLUNTEER | Four-Wheeler Runner (Backup) | `vol.priya@rescueplate.org` |
-| **Karthik Rao** | VOLUNTEER | Two-Wheeler Runner (HSR Layout) | `vol.karthik@rescueplate.org` |
-| **Meera Nair** | VOLUNTEER | Two-Wheeler Runner (Indiranagar) | `vol.meera@rescueplate.org` |
-
----
-
-## Disclosures & Boundary Labeling
-
-- **Food Safety:** Handling information is provided by participants. The application does not certify food safety, legal compliance, or shelf life.
-- **Distance & Routing:** Unless configured with a live Google Maps API key, distances use great-circle Haversine calculations and straight-line urban demonstration estimates. They are never represented as real-time traffic ETAs.
-- **Emissions:** Carbon emissions default to `"Not calculated"`. Estimates are only shown if explicit emission factors and waste diversion assumptions are configured.
-- **Messaging:** Notification events are stored in the local database and labeled with their simulated channel. The application never falsely claims an SMS or WhatsApp message was transmitted.
-
+- Map distance and route duration use the adapter's Haversine/straight-line fallback unless a supported routing provider is configured; these are not live traffic ETAs.
+- Notifications are persisted in-app. Email/SMS/WhatsApp delivery is not integrated.
+- Demo OTPs are surfaced in the UI only when `DEMO_MODE=true`; production delivery of verification codes needs a trusted messaging provider and stricter operational controls.
+- Food safety, organization verification, recipient capacity, and volunteer availability are demo records, not external certifications or live checks.
+- CO2 impact is "Not calculated" by default. Any estimate requires reviewed factors and documented assumptions.
+- Before production, add deployment-grade secrets and access controls, privacy/retention policies, monitoring, rate limits, backup/restore procedures, external provider integrations, and operational review of legal and food-safety requirements.

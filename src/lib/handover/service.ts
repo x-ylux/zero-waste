@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { HandoverChallenge, HandoverStage, AllocationStatus, AssignmentStatus } from "@prisma/client";
+import {
+  assertAllocationTransition,
+  assertAssignmentTransition,
+} from "@/lib/domain/status-transitions";
 
 export interface GenerateChallengeParams {
   allocationId: string;
@@ -130,14 +134,21 @@ export class HandoverService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // Mark challenge verified
-      await tx.handoverChallenge.update({
-        where: { id: challenge.id },
+      const claimedChallenge = await tx.handoverChallenge.updateMany({
+        where: {
+          id: challenge.id,
+          isVerified: false,
+          attemptCount: { lt: challenge.maxAttempts },
+          expiresAt: { gt: new Date() },
+        },
         data: {
           isVerified: true,
           verifiedAt: new Date(),
         },
       });
+      if (claimedChallenge.count !== 1) {
+        throw new Error("CHALLENGE_ALREADY_USED: This handover challenge has already been verified or expired.");
+      }
 
       // 2. Fetch allocation
       const allocation = await tx.allocation.findUnique({
@@ -158,8 +169,12 @@ export class HandoverService {
       let newAssignmentStatus: AssignmentStatus = "COLLECTED";
 
       if (params.stage === "COLLECTION") {
+        assertAllocationTransition(allocation.status, "COLLECTED");
         if (params.verifiedQuantity <= 0) {
           throw new Error("INVALID_QUANTITY: Collected quantity must be greater than zero.");
+        }
+        if (params.verifiedQuantity > allocation.allocatedQuantity) {
+          throw new Error("INVALID_QUANTITY: Collected quantity cannot exceed the allocated quantity.");
         }
 
         newAllocationStatus = "COLLECTED";
@@ -182,8 +197,20 @@ export class HandoverService {
           },
         });
       } else if (params.stage === "DELIVERY") {
+        if (allocation.status !== "COLLECTED") {
+          throw new Error(`INVALID_STATE: Cannot deliver allocation in '${allocation.status}' state.`);
+        }
         const rejected = params.rejectedQuantity || 0;
         const accepted = params.verifiedQuantity;
+        if (accepted < 0 || rejected < 0 || accepted + rejected <= 0) {
+          throw new Error("INVALID_QUANTITY: Accepted and rejected quantities must total more than zero.");
+        }
+        if (accepted + rejected !== (allocation.collectedQuantity || 0)) {
+          throw new Error("INVALID_QUANTITY: Accepted and rejected quantities must reconcile to the collected quantity.");
+        }
+        if (rejected > 0 && !params.rejectionReason?.trim()) {
+          throw new Error("INVALID_REASON: A rejection reason is required when food is rejected.");
+        }
 
         if (accepted === 0 && rejected > 0) {
           newAllocationStatus = "REJECTED";
@@ -195,6 +222,7 @@ export class HandoverService {
           newAllocationStatus = "DELIVERED";
           newAssignmentStatus = "COMPLETED";
         }
+        assertAllocationTransition(allocation.status, newAllocationStatus);
 
         await tx.allocation.update({
           where: { id: allocation.id },
@@ -229,6 +257,7 @@ export class HandoverService {
 
       // Update current assignment status
       for (const assignment of allocation.assignments) {
+        assertAssignmentTransition(assignment.status, newAssignmentStatus);
         await tx.assignment.update({
           where: { id: assignment.id },
           data: { status: newAssignmentStatus },
@@ -284,6 +313,12 @@ export class HandoverService {
       const allAllocations = await tx.allocation.findMany({
         where: { donationId: allocation.donationId },
       });
+      const donationItems = await tx.donationItem.findMany({
+        where: { donationId: allocation.donationId },
+      });
+      const hasUnallocatedInventory = donationItems.some(
+        (item) => item.allocatedQuantity < item.quantity
+      );
       const allCompleted = allAllocations.every(
         (a) =>
           a.status === "DELIVERED" ||
@@ -291,7 +326,7 @@ export class HandoverService {
           a.status === "REJECTED" ||
           a.status === "CANCELLED"
       );
-      if (allCompleted) {
+      if (allCompleted && !hasUnallocatedInventory) {
         await tx.donation.update({
           where: { id: allocation.donationId },
           data: { status: "CLOSED" },

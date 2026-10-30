@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { mapAdapter } from "@/lib/maps/adapter";
+import { assertAllocationTransition, assertAssignmentTransition } from "@/lib/domain/status-transitions";
 
 export interface WorkerRunResult {
   processedExpiredOffersCount: number;
@@ -58,6 +59,7 @@ export class RecoveryWorker {
       }
 
       // Mark the expired assignment as TIMED_OUT (preserving history)
+      assertAssignmentTransition(assignment.status, "TIMED_OUT");
       await prisma.assignment.update({
         where: { id: assignment.id },
         data: {
@@ -211,6 +213,7 @@ export class RecoveryWorker {
       });
 
       // Update allocation status to AWAITING_VOLUNTEER
+      assertAllocationTransition(allocation.status, "AWAITING_VOLUNTEER");
       await prisma.allocation.update({
         where: { id: allocation.id },
         data: { status: "AWAITING_VOLUNTEER" },
@@ -246,6 +249,7 @@ export class RecoveryWorker {
 
     const chosenVolunteer = sorted[0];
     const offerExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes offer
+    assertAllocationTransition(allocation.status, "AWAITING_VOLUNTEER");
 
     // Create new Assignment with status OFFERED
     const newAssignment = await prisma.assignment.create({
@@ -267,6 +271,11 @@ export class RecoveryWorker {
         status: "PENDING",
         expiresAt: offerExpiresAt,
       },
+    });
+
+    await prisma.allocation.update({
+      where: { id: allocation.id },
+      data: { status: "AWAITING_VOLUNTEER" },
     });
 
     // Notify chosen volunteer
@@ -346,6 +355,10 @@ export class RecoveryWorker {
         "FORBIDDEN: Cannot cancel assignment after food has been collected. Please report an incident to admin."
       );
     }
+    if (!assignment.isCurrent) {
+      throw new Error("INVALID_STATE: Cannot cancel an archived assignment.");
+    }
+    assertAssignmentTransition(assignment.status, "CANCELLED");
 
     // Preserve history and mark current assignment cancelled
     await prisma.assignment.update({
@@ -378,4 +391,3 @@ export class RecoveryWorker {
     );
   }
 }
-

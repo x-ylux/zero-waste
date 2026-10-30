@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertTriangle, Sliders, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, Sliders, RefreshCw, RotateCcw, X } from "lucide-react";
 
 export function DemoBanner() {
   const [openControls, setOpenControls] = useState(false);
@@ -9,6 +9,12 @@ export function DemoBanner() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleDemoAction = async (action: string) => {
+    if (
+      action === "RESET_DEMO_DATA" &&
+      !window.confirm("Reset all demo donations and restore the original Bengaluru dataset? This cannot be undone.")
+    ) {
+      return;
+    }
     setLoadingAction(action);
     setStatusMessage(null);
     try {
@@ -22,6 +28,9 @@ export function DemoBanner() {
         setStatusMessage(`Error: ${data.error || "Action failed"}`);
       } else {
         setStatusMessage(`Success: ${data.message || JSON.stringify(data.result || "Done")}`);
+        if (action === "RESET_DEMO_DATA") {
+          window.setTimeout(() => window.location.reload(), 700);
+        }
       }
     } catch (err: any) {
       setStatusMessage(`Network error: ${err.message}`);
@@ -140,6 +149,23 @@ export function DemoBanner() {
                   {loadingAction === "RUN_WORKER" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Execute Recovery Worker Now"}
                 </button>
               </div>
+
+              <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                <h4 className="text-xs font-bold text-red-900 uppercase tracking-wider mb-1">
+                  Restore the original demo dataset
+                </h4>
+                <p className="text-xs text-red-800 mb-2">
+                  Removes demo-created listings and resets all 5 donors, 4 NGOs, 8 volunteers, and 12 seeded donations.
+                </p>
+                <button
+                  onClick={() => handleDemoAction("RESET_DEMO_DATA")}
+                  disabled={!!loadingAction}
+                  className="w-full py-2 bg-red-700 hover:bg-red-800 text-white rounded font-medium text-xs flex items-center justify-center gap-2 transition disabled:opacity-60"
+                >
+                  {loadingAction === "RESET_DEMO_DATA" ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                  Reset Demo Data
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 pt-3 border-t border-warmgray-200 flex justify-end">
@@ -156,4 +182,3 @@ export function DemoBanner() {
     </>
   );
 }
-

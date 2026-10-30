@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -44,11 +44,7 @@ export default function HandoverPage() {
   const [submittingVerification, setSubmittingVerification] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
-  useEffect(() => {
-    fetchAllocation();
-  }, [allocationId]);
-
-  const fetchAllocation = async () => {
+  const fetchAllocation = useCallback(async () => {
     setLoading(true);
     try {
       // Find allocation through donation details API or direct query
@@ -80,7 +76,11 @@ export default function HandoverPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [allocationId]);
+
+  useEffect(() => {
+    fetchAllocation();
+  }, [fetchAllocation]);
 
   const handleGenerateChallenge = async () => {
     setGeneratingChallenge(true);
@@ -311,10 +311,11 @@ export default function HandoverPage() {
 
           <form onSubmit={handleVerify} className="space-y-5">
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="handover-code" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Enter 6-Digit Verification Challenge Code *
               </label>
               <input
+                id="handover-code"
                 type="text"
                 required
                 maxLength={6}
@@ -331,10 +332,11 @@ export default function HandoverPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="accepted-quantity" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                   Verified Accepted Quantity ({allocation.unit}) *
                 </label>
                 <input
+                  id="accepted-quantity"
                   type="number"
                   min="0"
                   required
@@ -346,10 +348,11 @@ export default function HandoverPage() {
 
               {stage === "DELIVERY" && (
                 <div>
-                  <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="rejected-quantity" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                     Rejected / Damaged Quantity ({allocation.unit})
                   </label>
                   <input
+                    id="rejected-quantity"
                     type="number"
                     min="0"
                     value={rejectedQuantity}
@@ -362,10 +365,11 @@ export default function HandoverPage() {
 
             {rejectedQuantity > 0 && (
               <div>
-                <label className="block text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">
+                <label htmlFor="rejection-reason" className="block text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">
                   Mandatory Rejection Reason *
                 </label>
                 <input
+                  id="rejection-reason"
                   type="text"
                   required
                   value={rejectionReason}

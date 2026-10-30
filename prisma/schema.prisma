@@ -163,6 +163,7 @@ model Organisation {
   address             String
   latitude            Float
   longitude           Float
+  location            Unsupported("geography(Point,4326)")?
   operatingHoursStart String   @default("08:00") // 24-hr format HH:mm
   operatingHoursEnd   String   @default("22:00")
   collectionRadiusKm  Float    @default(15.0)    // For NGOs
@@ -222,6 +223,7 @@ model VolunteerProfile {
   operatingRadiusKm      Float        @default(15.0)
   latitude               Float        @default(12.9716) // Default coordinate (e.g. Bengaluru center)
   longitude              Float        @default(77.5946)
+  location               Unsupported("geography(Point,4326)")?
   vehicleType            String       @default("TWO_WHEELER") // TWO_WHEELER, FOUR_WHEELER, ON_FOOT
   activeAssignmentsCount Int          @default(0)
   createdAt              DateTime     @default(now())
@@ -266,6 +268,7 @@ model Donation {
   pickupAddress      String
   latitude           Float
   longitude          Float
+  location           Unsupported("geography(Point,4326)")?
   pickupWindowStart  DateTime
   pickupWindowEnd    DateTime       // Collection deadline
   handlingNotes      String?
@@ -408,6 +411,7 @@ model HandoverEvent {
   allocation         Allocation    @relation(fields: [allocationId], references: [id], onDelete: Cascade)
   actor              User          @relation(fields: [actorUserId], references: [id])
 
+  @@unique([allocationId, stage])
   @@map("handover_events")
 }
 
@@ -462,4 +466,3 @@ model AuditEvent {
 
   @@map("audit_events")
 }
-

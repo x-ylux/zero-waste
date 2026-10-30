@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Utensils,
@@ -41,6 +41,11 @@ const PACKAGING_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
+const toDateTimeLocal = (date: Date) =>
+  new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+
 export default function CreateDonationPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -55,15 +60,16 @@ export default function CreateDonationPage() {
   const [storageInfo, setStorageInfo] = useState("HOT_HOLD");
   const [packagingInfo, setPackagingInfo] = useState("SEALED_CONTAINERS");
 
-  // Default times (starts 1 hour from now, expires 5 hours from now)
-  const now = new Date();
-  const defaultStart = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16);
-  const defaultEnd = new Date(now.getTime() + 5 * 3600 * 1000).toISOString().slice(0, 16);
-  const defaultPrep = new Date(now.getTime() - 2 * 3600 * 1000).toISOString().slice(0, 16);
+  const [pickupWindowStart, setPickupWindowStart] = useState("");
+  const [pickupWindowEnd, setPickupWindowEnd] = useState("");
+  const [preparationTime, setPreparationTime] = useState("");
 
-  const [pickupWindowStart, setPickupWindowStart] = useState(defaultStart);
-  const [pickupWindowEnd, setPickupWindowEnd] = useState(defaultEnd);
-  const [preparationTime, setPreparationTime] = useState(defaultPrep);
+  useEffect(() => {
+    const now = new Date();
+    setPickupWindowStart(toDateTimeLocal(new Date(now.getTime() + 60 * 60 * 1000)));
+    setPickupWindowEnd(toDateTimeLocal(new Date(now.getTime() + 5 * 60 * 60 * 1000)));
+    setPreparationTime(toDateTimeLocal(new Date(now.getTime() - 2 * 60 * 60 * 1000)));
+  }, []);
 
   const [itemName, setItemName] = useState("Dal Makhani & Jeera Rice Meal Box");
   const [quantity, setQuantity] = useState(60);
@@ -190,10 +196,11 @@ export default function CreateDonationPage() {
           </h2>
 
           <div>
-            <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+            <label htmlFor="listing-title" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
               Listing Title *
             </label>
             <input
+              id="listing-title"
               type="text"
               required
               value={title}
@@ -264,7 +271,7 @@ export default function CreateDonationPage() {
             <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
               <span>Declared Allergens (Mandatory Selection) *</span>
               <span className="text-[11px] font-normal text-warmgray-500 lowercase">
-                Select specific allergens or 'Unknown'
+                Select specific allergens or &apos;Unknown&apos;
               </span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -310,10 +317,11 @@ export default function CreateDonationPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="listing-quantity" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Quantity (Whole Integer) *
               </label>
               <input
+                id="listing-quantity"
                 type="number"
                 min="1"
                 step="1"
@@ -463,10 +471,11 @@ export default function CreateDonationPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+            <label htmlFor="pickup-address" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
               Pickup Physical Address *
             </label>
             <input
+              id="pickup-address"
               type="text"
               required
               value={pickupAddress}
@@ -477,10 +486,11 @@ export default function CreateDonationPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="pickup-latitude" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Latitude (Bengaluru)
               </label>
               <input
+                id="pickup-latitude"
                 type="number"
                 step="0.0001"
                 value={latitude}
@@ -489,10 +499,11 @@ export default function CreateDonationPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="pickup-longitude" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Longitude (Bengaluru)
               </label>
               <input
+                id="pickup-longitude"
                 type="number"
                 step="0.0001"
                 value={longitude}
@@ -524,4 +535,3 @@ export default function CreateDonationPage() {
     </div>
   );
 }
-

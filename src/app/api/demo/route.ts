@@ -5,6 +5,7 @@ import { AllocationService } from "@/lib/allocations/service";
 import { RecoveryWorker } from "@/lib/recovery/worker";
 import { HandoverService } from "@/lib/handover/service";
 import { QuantityUnit } from "@prisma/client";
+import { seedDemoData } from "../../../../prisma/seed";
 
 export async function POST(req: Request) {
   if (process.env.DEMO_MODE !== "true") {
@@ -25,6 +26,14 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { action } = body;
+
+    if (action === "RESET_DEMO_DATA") {
+      const counts = await seedDemoData();
+      return NextResponse.json({
+        success: true,
+        message: `Demo data reset: ${counts.donors} donors, ${counts.ngos} NGOs, ${counts.volunteers} volunteers, and ${counts.donations} donations.`,
+      });
+    }
 
     if (action === "STAGE_SPLIT_ALLOCATION") {
       // 1. Campus mess donation (donation-demo-campus-100)
@@ -88,6 +97,7 @@ export async function POST(req: Request) {
         unit: QuantityUnit.SERVINGS,
         capacityWindowId: "cw-annapurna-today",
         actorUserId: user.id,
+        dispatchVolunteer: false,
       });
 
       // NGO B (Hunger Relief) accepts 40 portions
@@ -99,6 +109,7 @@ export async function POST(req: Request) {
         unit: QuantityUnit.SERVINGS,
         capacityWindowId: "cw-hungerrelief-today",
         actorUserId: user.id,
+        dispatchVolunteer: false,
       });
 
       // Assign Volunteer 1 (Aarav) to Allocation A
@@ -231,4 +242,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

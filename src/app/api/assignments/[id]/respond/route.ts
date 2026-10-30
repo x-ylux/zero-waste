@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth/session";
 import { RecoveryWorker } from "@/lib/recovery/worker";
+import {
+  assertAllocationTransition,
+  assertAssignmentTransition,
+} from "@/lib/domain/status-transitions";
 
 export async function POST(
   req: Request,
@@ -45,6 +49,8 @@ export async function POST(
     }
 
     if (action === "ACCEPT") {
+      assertAssignmentTransition(assignment.status, "ACCEPTED");
+      assertAllocationTransition(assignment.allocation.status, "ASSIGNED");
       await prisma.$transaction(async (tx) => {
         await tx.assignment.update({
           where: { id: assignment.id },
@@ -82,6 +88,7 @@ export async function POST(
       return NextResponse.json({ success: true, message: "Assignment accepted." });
     } else {
       // DECLINE: preserve history, mark assignment declined, trigger backup search
+      assertAssignmentTransition(assignment.status, "DECLINED");
       await prisma.assignment.update({
         where: { id: assignment.id },
         data: {
@@ -126,4 +133,3 @@ export async function POST(
     );
   }
 }
-

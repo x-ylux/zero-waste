@@ -27,6 +27,27 @@ const DEMO_ACCOUNTS = [
     badge: "Banquet Caterer",
   },
   {
+    role: "DONOR",
+    name: "Ananya Deshmukh",
+    org: "GreenHarvest Farm Kitchen",
+    email: "donor.bistro@rescueplate.org",
+    badge: "Restaurant & Bakery",
+  },
+  {
+    role: "DONOR",
+    name: "Riya Menon",
+    org: "Namma Table Restaurant",
+    email: "donor.restaurant@rescueplate.org",
+    badge: "Restaurant Donor",
+  },
+  {
+    role: "DONOR",
+    name: "Ramesh Iyer",
+    org: "Lakeview Community Commissary",
+    email: "donor.commissary@rescueplate.org",
+    badge: "Institutional Kitchen",
+  },
+  {
     role: "NGO",
     name: "Sister Teresa",
     org: "Annapurna Seva Kendra",
@@ -41,6 +62,20 @@ const DEMO_ACCOUNTS = [
     badge: "40 Servings Window",
   },
   {
+    role: "NGO",
+    name: "Kavita Rao",
+    org: "Sneha Children Shelter",
+    email: "ngo.sneha@rescueplate.org",
+    badge: "Meals & Fresh Produce",
+  },
+  {
+    role: "NGO",
+    name: "Farah Khan",
+    org: "Sahaara Fresh Pantry",
+    email: "ngo.sahaara@rescueplate.org",
+    badge: "Produce & Chilled Storage",
+  },
+  {
     role: "VOLUNTEER",
     name: "Aarav Sharma",
     org: "Primary Two-Wheeler Runner",
@@ -52,7 +87,49 @@ const DEMO_ACCOUNTS = [
     name: "Priya Venkatesh",
     org: "Backup Four-Wheeler Runner",
     email: "vol.priya@rescueplate.org",
-    badge: "80 Capacity",
+    badge: "100 Capacity",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Karthik Rao",
+    org: "HSR Two-Wheeler Runner",
+    email: "vol.karthik@rescueplate.org",
+    badge: "50 Servings",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Meera Nair",
+    org: "Indiranagar Two-Wheeler Runner",
+    email: "vol.meera@rescueplate.org",
+    badge: "60 Servings",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Farah Khan",
+    org: "Occasional On-Foot Runner",
+    email: "vol.farah@rescueplate.org",
+    badge: "20 Servings · Unavailable",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Dev Narayan",
+    org: "Produce Courier",
+    email: "vol.dev@rescueplate.org",
+    badge: "40 kg",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Isha Kulkarni",
+    org: "Local Packet Courier",
+    email: "vol.isha@rescueplate.org",
+    badge: "40 Packets",
+  },
+  {
+    role: "VOLUNTEER",
+    name: "Rohan Shetty",
+    org: "Four-Wheeler Runner",
+    email: "vol.rohan@rescueplate.org",
+    badge: "120 Servings",
   },
 ];
 
@@ -129,12 +206,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="login-email" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-warmgray-400 absolute left-3 top-3" />
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -146,12 +224,13 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
+              <label htmlFor="login-password" className="block text-xs font-bold text-warmgray-700 uppercase tracking-wider mb-1">
                 Password
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-warmgray-400 absolute left-3 top-3" />
                 <input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -230,4 +309,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
