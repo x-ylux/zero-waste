@@ -1,18 +1,12 @@
+import { createSeedState } from "@/lib/data/seed";
+import { calculateImpact } from "@/lib/domain/impact";
 import { NextResponse } from "next/server";
-import { calculateImpactMetrics } from "@/lib/impact/calculator";
 
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const donorOrgId = searchParams.get("donorOrgId") || undefined;
-
-    const metrics = await calculateImpactMetrics(donorOrgId);
-    return NextResponse.json({ metrics });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || "Failed to calculate impact metrics." },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  const impact = calculateImpact(createSeedState().donations);
+  return NextResponse.json({
+    impact,
+    label: impact.label,
+    note: "Seed snapshot only. The live demo dashboard reads accepted quantities from localStorage state.",
+  });
 }
-

@@ -8,461 +8,306 @@ datasource db {
 }
 
 enum Role {
-  DONOR
-  NGO
-  VOLUNTEER
-  ADMIN
-}
-
-enum OrgType {
-  DONOR
-  NGO
-}
-
-enum VerificationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum FoodCategory {
-  COOKED_MEALS
-  PACKAGED_FOOD
-  RAW_PRODUCE
-  BAKERY
-  BEVERAGES
-  DAIRY
-  OTHER
-}
-
-enum QuantityUnit {
-  SERVINGS
-  KG
-  PACKETS
-  BOXES
-}
-
-enum StorageInfo {
-  AMBIENT
-  REFRIGERATED
-  HOT_HOLD
-  FROZEN
-}
-
-enum PackagingInfo {
-  SEALED_CONTAINERS
-  FOIL_WRAPPED
-  BULK_VESSELS
-  PACKETED
-  BOXED
-  OTHER
+  donor
+  ngo
+  volunteer
+  admin
 }
 
 enum DonationStatus {
-  DRAFT
-  OPEN
-  PARTIALLY_ALLOCATED
-  FULLY_ALLOCATED
-  CLOSED
-  CANCELLED
-  EXPIRED
+  available
+  reserved
+  collected
+  delivered
+  cancelled
+  expired
+  rejected
 }
 
-enum AllocationStatus {
-  ACCEPTED
-  AWAITING_VOLUNTEER
-  ASSIGNED
-  COLLECTED
-  DELIVERED
-  PARTIALLY_DELIVERED
-  REJECTED
-  CANCELLED
-  FAILED
+enum TaskStatus {
+  unassigned
+  assigned
+  picked_up
+  delivered
+  backup_needed
+  cancelled
 }
 
-enum AssignmentStatus {
-  OFFERED
-  ACCEPTED
-  DECLINED
-  TIMED_OUT
-  CANCELLED
-  COLLECTED
-  COMPLETED
-  FAILED
+enum FoodCategory {
+  cooked_meals
+  packaged_food
+  produce
+  bakery
+  dairy
+  beverages
+  other
 }
 
-enum OfferStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  EXPIRED
-}
-
-enum HandoverStage {
-  COLLECTION
-  DELIVERY
-}
-
-enum NotificationType {
-  INFO
-  OFFER
-  ALERT
-  CANCELLATION
-  HANDOVER
-  SYSTEM
-}
-
-enum IncidentSeverity {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum IncidentStatus {
-  OPEN
-  INVESTIGATING
-  RESOLVED
-  DISMISSED
+enum QuantityUnit {
+  servings
+  kg
+  packets
+  boxes
 }
 
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
-  passwordHash     String
-  name             String
-  phone            String?
-  role             Role      @default(DONOR)
-  isActive         Boolean   @default(true)
-  isSuspended      Boolean   @default(false)
-  suspensionReason String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id          String  @id
+  name        String
+  email       String  @unique
+  role        Role
+  phone       String?
+  orgId       String?
+  volunteerId String?
 
-  memberships              OrganisationMembership[]
-  volunteerProfile         VolunteerProfile?
-  verificationsReviewed    OrganisationVerification[] @relation("ReviewedVerifications")
-  donationsCreated         Donation[]
-  assignments              Assignment[]
-  assignmentOffers         AssignmentOffer[]
-  handoverChallengesCreated HandoverChallenge[]
-  handoverEvents           HandoverEvent[]
-  notifications            Notification[]
-  incidentsReported        Incident[]                 @relation("ReportedIncidents")
-  incidentsResolved        Incident[]                 @relation("ResolvedIncidents")
-  auditEvents              AuditEvent[]
+  notifications Notification[]
+  incidents     IncidentReport[]
+  handoffs      HandoffEvent[]
 
   @@map("users")
 }
 
-model Organisation {
-  id                  String   @id @default(uuid())
-  name                String
-  type                OrgType
-  description         String?
-  address             String
-  latitude            Float
-  longitude           Float
-  location            Unsupported("geography(Point,4326)")?
-  operatingHoursStart String   @default("08:00") // 24-hr format HH:mm
-  operatingHoursEnd   String   @default("22:00")
-  collectionRadiusKm  Float    @default(15.0)    // For NGOs
-  acceptedCategories  String   @default("[]")    // JSON array of FoodCategory string values
-  isVerified          Boolean  @default(false)
-  isSuspended         Boolean  @default(false)
-  suspensionReason    String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model DonorOrg {
+  id          String  @id
+  name        String
+  kind        String
+  contactName String
+  phone       String
+  address     String
+  latitude    Float
+  longitude   Float
+  location    Unsupported("geography(Point,4326)")?
 
-  memberships      OrganisationMembership[]
-  verifications    OrganisationVerification[]
-  capacityWindows  CapacityWindow[]
-  donations        Donation[]
-  allocations      Allocation[]
+  donations Donation[]
 
-  @@map("organisations")
+  @@map("donor_orgs")
 }
 
-model OrganisationMembership {
-  id             String       @id @default(uuid())
-  userId         String
-  organisationId String
-  roleInOrg      String       @default("MEMBER") // OWNER, ADMIN, MEMBER
-  createdAt      DateTime     @default(now())
+model NgoProfile {
+  id                      String    @id
+  name                    String
+  coordinatorName         String
+  phone                   String
+  address                 String
+  latitude                Float
+  longitude               Float
+  location                Unsupported("geography(Point,4326)")?
+  acceptedCategories      String
+  dietaryRequirements     String
+  storageCapabilities     String
+  handlingCapabilities    String
+  receivingHoursStart     String
+  receivingHoursEnd       String
+  maxAcceptableQuantity   Int
+  quantityUnit            QuantityUnit
+  lastCompletedDonationAt DateTime?
 
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  needs NeedsRequest?
+  tasks RescueTask[]
 
-  @@unique([userId, organisationId])
-  @@map("organisation_memberships")
-}
-
-model OrganisationVerification {
-  id                 String             @id @default(uuid())
-  organisationId     String
-  documentType       String             // e.g. 80G_CERTIFICATE, FSSAI_REGISTRATION, TRUST_DEED
-  documentNumber     String
-  verificationStatus VerificationStatus @default(PENDING)
-  reviewedByUserId   String?
-  reviewNotes        String?
-  reviewedAt         DateTime?
-  createdAt          DateTime           @default(now())
-
-  organisation       Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  reviewer           User?              @relation("ReviewedVerifications", fields: [reviewedByUserId], references: [id])
-
-  @@map("organisation_verifications")
+  @@map("ngo_profiles")
 }
 
 model VolunteerProfile {
-  id                     String       @id @default(uuid())
-  userId                 String       @unique
-  isAvailable            Boolean      @default(true)
-  maxCarryingCapacity    Int          @default(60) // positive integer base units
-  capacityUnit           QuantityUnit @default(SERVINGS)
-  operatingRadiusKm      Float        @default(15.0)
-  latitude               Float        @default(12.9716) // Default coordinate (e.g. Bengaluru center)
-  longitude              Float        @default(77.5946)
-  location               Unsupported("geography(Point,4326)")?
-  vehicleType            String       @default("TWO_WHEELER") // TWO_WHEELER, FOUR_WHEELER, ON_FOOT
-  activeAssignmentsCount Int          @default(0)
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  id                    String  @id
+  userId                String  @unique
+  name                  String
+  phone                 String
+  address               String
+  latitude              Float
+  longitude             Float
+  location              Unsupported("geography(Point,4326)")?
+  available             Boolean
+  standby               Boolean
+  transportType         String
+  carryingCapacity      Int
+  capacityUnit          QuantityUnit
+  handlingCapabilities  String
+  notes                 String?
 
-  user                   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks RescueTask[]
 
   @@map("volunteer_profiles")
 }
 
-model CapacityWindow {
-  id               String       @id @default(uuid())
-  organisationId   String
-  startTime        DateTime
-  endTime          DateTime
-  unit             QuantityUnit @default(SERVINGS)
-  maxCapacity      Int
-  reservedCapacity Int          @default(0)
-  receivedCapacity Int          @default(0)
-  notes            String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  organisation     Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  allocations      Allocation[]
-
-  @@map("capacity_windows")
-}
-
 model Donation {
-  id                 String         @id @default(uuid())
-  donorOrgId         String
-  createdByUserId    String
-  title              String
-  foodCategory       FoodCategory
-  dietaryTags        String         @default("[]") // JSON string: ["VEGETARIAN", "VEGAN", etc.]
-  ingredients        String?
-  allergens          String         @default("[\"UNKNOWN\"]") // JSON string, explicit ["UNKNOWN"] or list
-  storageInfo        StorageInfo    @default(AMBIENT)
-  packagingInfo      PackagingInfo  @default(SEALED_CONTAINERS)
-  preparationTime    DateTime?
-  pickupAddress      String
-  latitude           Float
-  longitude          Float
-  location           Unsupported("geography(Point,4326)")?
-  pickupWindowStart  DateTime
-  pickupWindowEnd    DateTime       // Collection deadline
-  handlingNotes      String?
-  photoUrl           String?
-  status             DonationStatus @default(DRAFT)
-  cancellationReason String?
-  cancelledAt        DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  id                     String         @id
+  donorOrgId             String
+  createdByUserId        String
+  title                  String
+  description            String
+  category               FoodCategory
+  quantity               Float
+  unit                   QuantityUnit
+  estimatedPortions      Float?
+  dietaryTags            String
+  allergens              String
+  preparedAt             DateTime?
+  storage                String
+  handlingRequirements   String
+  packagingAvailable     Boolean
+  pickupAddress          String
+  latitude               Float
+  longitude              Float
+  location               Unsupported("geography(Point,4326)")?
+  pickupWindowStart      DateTime
+  pickupWindowEnd        DateTime
+  contactName            String
+  contactPhone           String
+  photoDataUrl           String?
+  handlingAcknowledged   Boolean
+  status                 DonationStatus
+  reservedNgoId          String?
+  acceptedQuantity       Float?
+  rejectionReason        String?
+  cancellationReason     String?
+  failureReason          String?
+  createdAt              DateTime
+  updatedAt              DateTime
 
-  donorOrg           Organisation   @relation(fields: [donorOrgId], references: [id])
-  createdByUser      User           @relation(fields: [createdByUserId], references: [id])
-  items              DonationItem[]
-  allocations        Allocation[]
+  donorOrg DonorOrg      @relation(fields: [donorOrgId], references: [id])
+  tasks    RescueTask[]
+  handoffs HandoffEvent[]
+  timeline TimelineEvent[]
 
   @@map("donations")
 }
 
-model DonationItem {
-  id                String       @id @default(uuid())
-  donationId        String
-  name              String
-  quantity          Int          // Total available integer base units
-  unit              QuantityUnit
-  estimatedServings Int?         // Optional donor-entered estimated serving count
-  allocatedQuantity Int          @default(0)
-  collectedQuantity Int          @default(0)
-  deliveredQuantity Int          @default(0)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+model NeedsRequest {
+  id                    String       @id
+  ngoId                 String       @unique
+  requiredCategories    String
+  requestedQuantity     Float
+  quantityUnit          QuantityUnit
+  dietaryRequirements   String
+  receivingHoursStart   String
+  receivingHoursEnd     String
+  storageCapabilities   String
+  handlingCapabilities  String
+  maxAcceptableQuantity Float
+  deliveryAddress       String
+  deliveryLat           Float
+  deliveryLng           Float
+  notes                 String?
+  updatedAt             DateTime
 
-  donation          Donation     @relation(fields: [donationId], references: [id], onDelete: Cascade)
-  allocations       Allocation[]
+  ngo NgoProfile @relation(fields: [ngoId], references: [id])
 
-  @@map("donation_items")
+  @@map("needs_requests")
 }
 
-model Allocation {
-  id                  String           @id @default(uuid())
+model RescueTask {
+  id                  String     @id
   donationId          String
-  donationItemId      String
-  ngoOrgId            String
-  capacityWindowId    String?
-  allocatedQuantity   Int              // Positive integer base units
-  unit                QuantityUnit
-  status              AllocationStatus @default(ACCEPTED)
-  snapshotItemDetails String           // JSON snapshot of item at confirmation time
-  collectedQuantity   Int?
-  deliveredQuantity   Int?
-  rejectedQuantity    Int?
-  rejectionReason     String?
+  ngoId               String
+  volunteerId         String?
+  status              TaskStatus
+  standbyNotifiedIds  String
   cancellationReason  String?
-  cancelledAt         DateTime?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  failureReason       String?
+  createdAt           DateTime
+  updatedAt           DateTime
 
-  donation            Donation         @relation(fields: [donationId], references: [id])
-  donationItem        DonationItem     @relation(fields: [donationItemId], references: [id])
-  ngoOrg              Organisation     @relation(fields: [ngoOrgId], references: [id])
-  capacityWindow      CapacityWindow?  @relation(fields: [capacityWindowId], references: [id])
-  assignments         Assignment[]
-  handoverChallenges  HandoverChallenge[]
-  handoverEvents      HandoverEvent[]
-  incidents           Incident[]
+  donation  Donation          @relation(fields: [donationId], references: [id])
+  ngo       NgoProfile        @relation(fields: [ngoId], references: [id])
+  volunteer VolunteerProfile? @relation(fields: [volunteerId], references: [id])
+  handoffs  HandoffEvent[]
 
-  @@map("allocations")
+  @@map("rescue_tasks")
 }
 
-model Assignment {
-  id                 String           @id @default(uuid())
-  allocationId       String
-  volunteerUserId    String
-  status             AssignmentStatus @default(OFFERED)
-  isCurrent          Boolean          @default(true) // retained history when replaced by backup
-  offerExpiresAt     DateTime
-  acceptedAt         DateTime?
-  cancelledAt        DateTime?
-  cancellationReason String?
-  failureReason      String?
-  notes              String?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+model HandoffEvent {
+  id          String   @id
+  donationId  String
+  taskId      String
+  stage       String
+  actorUserId String
+  actorRole   Role
+  quantity    Float?
+  notes       String?
+  method      String
+  createdAt   DateTime
 
-  allocation         Allocation       @relation(fields: [allocationId], references: [id], onDelete: Cascade)
-  volunteer          User             @relation(fields: [volunteerUserId], references: [id])
-  offers             AssignmentOffer[]
+  donation Donation @relation(fields: [donationId], references: [id])
+  task     RescueTask @relation(fields: [taskId], references: [id])
+  actor    User     @relation(fields: [actorUserId], references: [id])
 
-  @@map("assignments")
+  @@map("handoff_events")
 }
 
-model AssignmentOffer {
-  id              String      @id @default(uuid())
-  assignmentId    String
-  volunteerUserId String
-  status          OfferStatus @default(PENDING)
-  expiresAt       DateTime
-  respondedAt     DateTime?
-  createdAt       DateTime    @default(now())
+model TimelineEvent {
+  id          String  @id
+  donationId  String
+  taskId      String?
+  label       String
+  detail      String
+  createdAt   DateTime
+  actorUserId String?
 
-  assignment      Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  volunteer       User        @relation(fields: [volunteerUserId], references: [id])
+  donation Donation @relation(fields: [donationId], references: [id])
 
-  @@map("assignment_offers")
-}
-
-model HandoverChallenge {
-  id               String        @id @default(uuid())
-  allocationId     String
-  stage            HandoverStage // COLLECTION, DELIVERY
-  challengeType    String        @default("OTP")
-  secretHash       String        // bcrypt hash of OTP
-  plaintextForDemo String?       // ONLY present if DEMO_MODE=true
-  expiresAt        DateTime
-  attemptCount     Int           @default(0)
-  maxAttempts      Int           @default(5)
-  isVerified       Boolean       @default(false)
-  verifiedAt       DateTime?
-  createdByUserId  String
-  createdAt        DateTime      @default(now())
-
-  allocation       Allocation    @relation(fields: [allocationId], references: [id], onDelete: Cascade)
-  createdBy        User          @relation(fields: [createdByUserId], references: [id])
-
-  @@map("handover_challenges")
-}
-
-model HandoverEvent {
-  id                 String        @id @default(uuid())
-  allocationId       String
-  stage              HandoverStage
-  actorUserId        String
-  verifiedQuantity   Int
-  rejectedQuantity   Int           @default(0)
-  rejectionReason    String?
-  inspectionNotes    String?
-  foodSafetyFlagged  Boolean       @default(false)
-  foodSafetyNotes    String?
-  timestamp          DateTime      @default(now())
-
-  allocation         Allocation    @relation(fields: [allocationId], references: [id], onDelete: Cascade)
-  actor              User          @relation(fields: [actorUserId], references: [id])
-
-  @@unique([allocationId, stage])
-  @@map("handover_events")
+  @@map("timeline_events")
 }
 
 model Notification {
-  id               String           @id @default(uuid())
-  userId           String
-  title            String
-  message          String
-  type             NotificationType @default(INFO)
-  isRead           Boolean          @default(false)
-  simulatedChannel String           @default("IN_APP")
-  metadata         String?          // JSON metadata
-  createdAt        DateTime         @default(now())
+  id                String   @id
+  userId            String
+  title             String
+  message           String
+  channel           String
+  simulated         Boolean  @default(true)
+  read              Boolean  @default(false)
+  createdAt         DateTime
+  relatedDonationId String?
+  relatedTaskId     String?
 
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@map("notifications")
 }
 
-model Incident {
-  id              String           @id @default(uuid())
-  allocationId    String?
-  reporterUserId  String
-  title           String
-  description     String
-  severity        IncidentSeverity @default(MEDIUM)
-  status          IncidentStatus   @default(OPEN)
-  resolutionNotes String?
-  resolvedByUserId String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+model IncidentReport {
+  id             String   @id
+  donationId     String?
+  taskId         String?
+  reporterUserId String
+  title          String
+  description    String
+  status         String
+  createdAt      DateTime
 
-  allocation      Allocation?      @relation(fields: [allocationId], references: [id])
-  reporter        User             @relation("ReportedIncidents", fields: [reporterUserId], references: [id])
-  resolver        User?            @relation("ResolvedIncidents", fields: [resolvedByUserId], references: [id])
+  reporter User @relation(fields: [reporterUserId], references: [id])
 
-  @@map("incidents")
+  @@map("incident_reports")
 }
 
-model AuditEvent {
-  id          String   @id @default(uuid())
-  actorUserId String?
-  action      String
-  entityType  String
-  entityId    String
-  reason      String?  // Mandatory for admin overrides
-  details     String?  // JSON
-  ipAddress   String?
-  createdAt   DateTime @default(now())
+model FailureRecord {
+  id         String   @id
+  donationId String?
+  taskId     String?
+  reason     String
+  notes      String
+  createdAt  DateTime
 
-  actor       User?    @relation(fields: [actorUserId], references: [id])
+  @@map("failure_records")
+}
 
-  @@map("audit_events")
+model ImpactConfigRow {
+  id                       String @id @default("default")
+  mealEquivalentServings   Float
+  mealEquivalentKg         Float
+  mealEquivalentPackets    Float
+  mealEquivalentBoxes      Float
+  kgCo2ePerMealEquivalent  Float
+  notes                    String
+
+  @@map("impact_config")
+}
+
+/// Convenience snapshot so the same AppState object can be persisted relationally later.
+model AppSnapshot {
+  id        String   @id @default("default")
+  state     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_snapshots")
 }

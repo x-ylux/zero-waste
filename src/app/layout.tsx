@@ -1,34 +1,19 @@
+import { DemoProvider } from "@/components/providers/DemoProvider";
 import type { Metadata } from "next";
 import "./globals.css";
-import { getSession } from "@/lib/auth/session";
-import { Navbar } from "@/components/layout/Navbar";
-import { DemoBanner } from "@/components/layout/DemoBanner";
-import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "RescuePlate - Capacity-Aware Food Redistribution",
+  title: "RescueRelay — surplus food matching",
   description:
-    "Connecting food donors, NGOs, and volunteers with capacity-aware matching, split allocations, and durable pickup recovery.",
+    "RescueRelay matches edible surplus from restaurants, caterers, and campus mess halls with NGO kitchens and volunteer couriers.",
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const session = await getSession();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen bg-[#faf8f5] text-warmgray-900 antialiased">
-        <DemoBanner />
-        <Navbar currentUser={session} />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </main>
-        <Footer />
+      <body>
+        <DemoProvider>{children}</DemoProvider>
       </body>
     </html>
   );
 }
-

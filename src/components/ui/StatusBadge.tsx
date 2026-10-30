@@ -1,67 +1,38 @@
-import React from "react";
+import { classNames } from "@/lib/format";
+import { DONATION_STATUS_LABELS, TASK_STATUS_LABELS } from "@/lib/domain/labels";
+import type { DonationStatus, TaskStatus } from "@/lib/domain/types";
 
-export function StatusBadge({
-  status,
-  type = "donation",
-}: {
-  status: string;
-  type?: "donation" | "allocation" | "assignment" | "offer";
-}) {
-  let badgeStyle = "bg-warmgray-100 text-warmgray-800 border-warmgray-300";
+const donationTone: Record<DonationStatus, string> = {
+  available: "bg-emerald-100 text-emerald-900",
+  reserved: "bg-sky-100 text-sky-900",
+  collected: "bg-amber-100 text-amber-950",
+  delivered: "bg-brand-100 text-brand-900",
+  cancelled: "bg-warmgray-200 text-warmgray-700",
+  expired: "bg-orange-100 text-orange-900",
+  rejected: "bg-rose-100 text-rose-900",
+};
 
-  switch (status) {
-    case "OPEN":
-    case "ACCEPTED":
-      badgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold";
-      break;
-    case "PARTIALLY_ALLOCATED":
-      badgeStyle = "bg-blue-50 text-blue-800 border-blue-300 font-semibold";
-      break;
-    case "FULLY_ALLOCATED":
-    case "ASSIGNED":
-      badgeStyle = "bg-indigo-50 text-indigo-800 border-indigo-300 font-semibold";
-      break;
-    case "AWAITING_VOLUNTEER":
-    case "OFFERED":
-    case "PENDING":
-      badgeStyle = "bg-amber-50 text-amber-800 border-amber-300 font-semibold";
-      break;
-    case "COLLECTED":
-      badgeStyle = "bg-purple-50 text-purple-800 border-purple-300 font-semibold";
-      break;
-    case "DELIVERED":
-    case "COMPLETED":
-    case "CLOSED":
-      badgeStyle = "bg-green-100 text-green-900 border-green-400 font-bold";
-      break;
-    case "PARTIALLY_DELIVERED":
-      badgeStyle = "bg-yellow-100 text-yellow-900 border-yellow-400 font-semibold";
-      break;
-    case "CANCELLED":
-    case "DECLINED":
-    case "TIMED_OUT":
-    case "EXPIRED":
-    case "REJECTED":
-    case "FAILED":
-      badgeStyle = "bg-rose-50 text-rose-800 border-rose-300 font-medium";
-      break;
-    default:
-      badgeStyle = "bg-warmgray-100 text-warmgray-700 border-warmgray-300";
-  }
+const taskTone: Record<TaskStatus, string> = {
+  unassigned: "bg-warmgray-200 text-warmgray-800",
+  assigned: "bg-sky-100 text-sky-900",
+  picked_up: "bg-amber-100 text-amber-950",
+  delivered: "bg-brand-100 text-brand-900",
+  backup_needed: "bg-amber-200 text-amber-950",
+  cancelled: "bg-warmgray-200 text-warmgray-700",
+};
 
-  const formatLabel = (val: string) => {
-    return val
-      .split("_")
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
-      .join(" ");
-  };
-
+export function DonationStatusBadge({ status }: { status: DonationStatus }) {
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border ${badgeStyle}`}
-    >
-      {formatLabel(status)}
+    <span className={classNames("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", donationTone[status])}>
+      {DONATION_STATUS_LABELS[status]}
     </span>
   );
 }
 
+export function TaskStatusBadge({ status }: { status: TaskStatus }) {
+  return (
+    <span className={classNames("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", taskTone[status])}>
+      {TASK_STATUS_LABELS[status]}
+    </span>
+  );
+}

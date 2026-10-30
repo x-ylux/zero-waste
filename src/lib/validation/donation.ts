@@ -1,84 +1,52 @@
 import { z } from "zod";
 
-export const foodCategoryEnum = z.enum([
-  "COOKED_MEALS",
-  "PACKAGED_FOOD",
-  "RAW_PRODUCE",
-  "BAKERY",
-  "BEVERAGES",
-  "DAIRY",
-  "OTHER",
-]);
-
-export const quantityUnitEnum = z.enum(["SERVINGS", "KG", "PACKETS", "BOXES"]);
-
-export const storageInfoEnum = z.enum(["AMBIENT", "REFRIGERATED", "HOT_HOLD", "FROZEN"]);
-
-export const packagingInfoEnum = z.enum([
-  "SEALED_CONTAINERS",
-  "FOIL_WRAPPED",
-  "BULK_VESSELS",
-  "PACKETED",
-  "BOXED",
-  "OTHER",
-]);
-
-export const donationItemSchema = z.object({
-  name: z.string().min(2, "Item name must have at least 2 characters").max(100),
-  quantity: z
-    .number()
-    .int("Quantity must be a whole number")
-    .positive("Quantity must be greater than zero"),
-  unit: quantityUnitEnum,
-  estimatedServings: z
-    .number()
-    .int("Estimated servings must be an integer")
-    .positive("Estimated servings must be positive")
-    .optional()
-    .nullable(),
+const geoSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  address: z.string().min(4),
 });
 
-export const createDonationSchema = z
+export const donationFormSchema = z
   .object({
-    title: z.string().min(3, "Title must be at least 3 characters").max(120),
-    foodCategory: foodCategoryEnum,
-    dietaryTags: z.array(z.string()).default([]),
-    ingredients: z.string().max(1000).optional().nullable(),
-    allergens: z
-      .array(z.string())
-      .min(1, "Please specify allergens or select 'Unknown'"),
-    storageInfo: storageInfoEnum,
-    packagingInfo: packagingInfoEnum,
-    preparationTime: z.string().datetime({ offset: true }).optional().nullable(),
-    pickupAddress: z.string().min(5, "Pickup address is required (min 5 characters)"),
-    latitude: z
-      .number()
-      .min(-90)
-      .max(90, "Latitude must be between -90 and 90"),
-    longitude: z
-      .number()
-      .min(-180)
-      .max(180, "Longitude must be between -180 and 180"),
-    pickupWindowStart: z.string().datetime({ offset: true }),
-    pickupWindowEnd: z.string().datetime({ offset: true }),
-    handlingNotes: z.string().max(1000).optional().nullable(),
-    photoUrl: z.string().url("Photo URL must be valid").optional().nullable(),
-    item: donationItemSchema,
+    title: z.string().min(3, "Add a food title."),
+    description: z.string().min(8, "Describe the food."),
+    category: z.enum(["cooked_meals", "packaged_food", "produce", "bakery", "dairy", "beverages", "other"]),
+    quantity: z.number().positive("Quantity must be greater than zero."),
+    unit: z.enum(["servings", "kg", "packets", "boxes"]),
+    estimatedPortions: z.number().positive().optional(),
+    dietaryTags: z.array(z.enum(["vegetarian", "vegan", "contains_meat", "halal", "jain"])).min(1),
+    allergens: z.array(z.enum(["gluten", "dairy", "nuts", "soy", "eggs", "shellfish", "sesame", "unknown", "none_declared"])).min(1),
+    preparedAt: z.string().optional(),
+    storage: z.enum(["ambient", "refrigerated", "frozen", "hot_hold"]),
+    handlingRequirements: z.array(z.enum(["keep_cold", "keep_hot", "upright", "fragile", "time_sensitive"])),
+    packagingAvailable: z.boolean(),
+    pickupLocation: geoSchema,
+    pickupWindowStart: z.string().min(1),
+    pickupWindowEnd: z.string().min(1),
+    contactName: z.string().min(2),
+    contactPhone: z.string().min(8),
+    photoDataUrl: z.string().optional(),
+    handlingAcknowledged: z.literal(true, {
+      errorMap: () => ({ message: "Confirm that handling and allergen details are donor-declared." }),
+    }),
   })
-  .refine(
-    (data) => new Date(data.pickupWindowEnd) > new Date(data.pickupWindowStart),
-    {
-      message: "Collection deadline must be after pickup window start",
-      path: ["pickupWindowEnd"],
-    }
-  )
-  .refine(
-    (data) => new Date(data.pickupWindowEnd) > new Date(),
-    {
-      message: "Collection deadline cannot be in the past",
-      path: ["pickupWindowEnd"],
-    }
-  );
+  .refine((value) => new Date(value.pickupWindowEnd) > new Date(value.pickupWindowStart), {
+    message: "Pickup window must end after it starts.",
+    path: ["pickupWindowEnd"],
+  });
 
-export type CreateDonationInput = z.infer<typeof createDonationSchema>;
+export const needsFormSchema = z.object({
+  requiredCategories: z.array(z.string()).min(1),
+  requestedQuantity: z.number().positive(),
+  quantityUnit: z.enum(["servings", "kg", "packets", "boxes"]),
+  dietaryRequirements: z.array(z.enum(["vegetarian", "vegan", "contains_meat", "halal", "jain"])),
+  receivingHoursStart: z.string().regex(/^\d{2}:\d{2}$/),
+  receivingHoursEnd: z.string().regex(/^\d{2}:\d{2}$/),
+  storageCapabilities: z.array(z.enum(["ambient", "refrigerated", "frozen", "hot_hold"])).min(1),
+  handlingCapabilities: z.array(z.enum(["keep_cold", "keep_hot", "upright", "fragile", "time_sensitive"])),
+  maxAcceptableQuantity: z.number().positive(),
+  deliveryAddress: geoSchema,
+  notes: z.string().optional(),
+});
 
+export type DonationFormValues = z.infer<typeof donationFormSchema>;
