@@ -37,3 +37,4 @@ export const verifyOtpHandoverSchema = z.object({
 
 export type GenerateOtpChallengeInput = z.infer<typeof generateOtpChallengeSchema>;
 export type VerifyOtpHandoverInput = z.infer<typeof verifyOtpHandoverSchema>;
+

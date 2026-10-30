@@ -416,3 +416,4 @@ ALTER TABLE "incidents" ADD CONSTRAINT "incidents_resolvedByUserId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "audit_events" ADD CONSTRAINT "audit_events_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

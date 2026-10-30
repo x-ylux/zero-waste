@@ -170,3 +170,4 @@ describe("Handover OTP Challenges & Cryptographic Verification", () => {
     expect(alloc!.rejectionReason).toBe("Broken seal on 2 container lids during transport.");
   });
 });
+

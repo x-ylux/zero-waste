@@ -30,3 +30,4 @@ test.describe("RescuePlate Core End-to-End Journey", () => {
     await expect(page.getByText("Pickup Completion Rate")).toBeVisible();
   });
 });
+

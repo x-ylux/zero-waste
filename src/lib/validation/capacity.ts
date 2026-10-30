@@ -32,3 +32,4 @@ export const volunteerAvailabilitySchema = z.object({
 
 export type CapacityWindowInput = z.infer<typeof capacityWindowSchema>;
 export type VolunteerAvailabilityInput = z.infer<typeof volunteerAvailabilitySchema>;
+

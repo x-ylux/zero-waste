@@ -93,3 +93,4 @@ export class MapAdapter implements IMapAdapter {
 }
 
 export const mapAdapter = new MapAdapter();
+

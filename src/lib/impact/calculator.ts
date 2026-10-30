@@ -175,3 +175,4 @@ export async function calculateImpactMetrics(donorOrgId?: string): Promise<Impac
     co2CalculationNotes,
   };
 }
+

@@ -462,3 +462,4 @@ model AuditEvent {
 
   @@map("audit_events")
 }
+

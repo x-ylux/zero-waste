@@ -207,3 +207,4 @@ All accounts use the password: `Password123!`
 - **Distance & Routing:** Unless configured with a live Google Maps API key, distances use great-circle Haversine calculations and straight-line urban demonstration estimates. They are never represented as real-time traffic ETAs.
 - **Emissions:** Carbon emissions default to `"Not calculated"`. Estimates are only shown if explicit emission factors and waste diversion assumptions are configured.
 - **Messaging:** Notification events are stored in the local database and labeled with their simulated channel. The application never falsely claims an SMS or WhatsApp message was transmitted.
+

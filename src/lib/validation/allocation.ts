@@ -20,3 +20,4 @@ export const cancelAllocationSchema = z.object({
 
 export type SplitAllocationInput = z.infer<typeof splitAllocationSchema>;
 export type CancelAllocationInput = z.infer<typeof cancelAllocationSchema>;
+

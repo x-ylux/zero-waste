@@ -108,3 +108,4 @@ export interface ImpactMetrics {
   co2AvoidedKg: number | null;
   co2CalculationNotes: string;
 }
+
