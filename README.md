@@ -6,6 +6,8 @@ RescueRelay is a Bengaluru-focused surplus-food rescue prototype. It connects re
 
 The default demo uses a **mock repository with browser localStorage**. You do **not** need PostgreSQL credentials or a Google Maps API key to explore the product.
 
+- The entry page offers sign-in, registration, and clearly labeled demo accounts
+- Real email-code authentication requires PostgreSQL, a Resend sender, and an `AUTH_SECRET`; it never falls back to fake codes
 - Missing Maps key → attractive **location-list fallback** (not a blank map or hard error)
 - Location board → responsive, data-fitted schematic map with selectable pins; distances remain straight-line estimates
 - Theme → light/dark toggle, with a 60-30-10 balance of dominant background, secondary surfaces, and emerald accent
@@ -18,7 +20,7 @@ The surplus forecast is a transparent demo heuristic, not a hosted AI model: it 
 
 ## Stack
 
-- Next.js 14 App Router + TypeScript
+- Next.js 16 App Router + TypeScript
 - Tailwind CSS + accessible shell/navigation
 - Zod validation for donation and needs forms
 - Domain engine for matching, status transitions, Rescue Mode, and impact
@@ -35,7 +37,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Use the **Demo role switcher** in the sidebar (it opens the selected role's dashboard; demonstration only — not production auth):
+Choose a **Demo account** on the entry page (demonstration only — it skips email verification and uses localStorage sample data):
 
 1. Donor
 2. NGO coordinator
@@ -57,6 +59,12 @@ npm run db:seed
 ```
 
 Set `RESCUE_RELAY_PERSISTENCE=postgres` only after `DATABASE_URL` points at a PostGIS-enabled database. The interactive UI still defaults to the mock/localStorage path unless you wire server handlers to the Postgres adapter.
+
+## Real account authentication
+
+Set `DATABASE_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and a random `AUTH_SECRET` in `.env`, then apply the Prisma migrations. Registration supports donor, NGO, and volunteer accounts. Registration and every password login send a six-digit email code through Resend; codes expire after 10 minutes, are limited to five attempts, and are stored only as keyed hashes. Sessions use HTTP-only cookies. Configure a verified sender address in Resend before testing real email delivery.
+
+The app's operational demo data still uses the browser localStorage repository. Configure a server-side operational data repository separately before using registered accounts for shared production workflows.
 
 ## Demo walkthrough
 
@@ -88,11 +96,11 @@ npm run build
 | Maps / ETA | Haversine + simulated minutes; list fallback without Maps key |
 | Notifications | In-app simulated SMS/email labels |
 | Impact / CO2e | Config factors in `src/lib/config/impact.ts`; not certified savings |
-| Auth | Demo role switcher only |
+| Authentication | Resend email codes + database-backed accounts when configured; demo accounts remain localStorage-only |
 
 ## Remaining work before production
 
-- Real authentication, authorization, and audit logging
+- Production-grade role authorization, account recovery, email delivery monitoring, and audit logging
 - Operational food-safety policy and organization verification
 - Live routing/notifications providers with privacy controls
 - Reviewed impact factors and legal review

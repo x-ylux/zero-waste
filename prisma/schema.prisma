@@ -62,6 +62,9 @@ model User {
   notifications Notification[]
   incidents     IncidentReport[]
   handoffs      HandoffEvent[]
+  credential    UserCredential?
+  emailChallenges EmailCodeChallenge[]
+  authSessions  AuthSession[]
 
   @@map("users")
 }
@@ -310,4 +313,45 @@ model AppSnapshot {
   updatedAt DateTime @updatedAt
 
   @@map("app_snapshots")
+}
+
+model UserCredential {
+  userId        String   @id
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+model EmailCodeChallenge {
+  id         String    @id
+  userId     String
+  purpose    String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("email_code_challenges")
+}
+
+model AuthSession {
+  id        String   @id
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
 }

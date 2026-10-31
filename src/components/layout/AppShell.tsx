@@ -9,6 +9,7 @@ import {
   Bell,
   HeartHandshake,
   LayoutDashboard,
+  LogOut,
   MapPinned,
   Menu,
   QrCode,
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const NAV = {
   donor: [
@@ -42,10 +43,13 @@ const NAV = {
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, setUserId, state, resetDemo, ready } = useDemo();
+  const { user, setUserId, state, resetDemo, ready, isAuthorized, logout } = useDemo();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (ready && !isAuthorized) router.replace("/");
+  }, [isAuthorized, ready, router]);
   const unread = state.notifications.filter((item) => item.userId === user.id && !item.read).length;
   const links = NAV[user.role];
   const personas = DEMO_PERSONAS;
@@ -66,6 +70,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     () => state.users.find((item) => item.id === "user-vol-priya"),
     [state.users]
   );
+
+  if (!ready || !isAuthorized) {
+    return <p className="p-6 text-sm text-warmgray-600">Checking your account…</p>;
+  }
 
   return (
     <div className="min-h-screen bg-cream-50 text-warmgray-900">
@@ -184,9 +192,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <ThemeToggle />
             </div>
-            <Link href="/qr/don-07" className="hidden items-center gap-1 text-sm text-brand-800 sm:flex">
-              <QrCode className="h-4 w-4" /> Sample QR passport
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/qr/don-07" className="hidden items-center gap-1 text-sm text-brand-800 sm:flex">
+                <QrCode className="h-4 w-4" /> Sample QR passport
+              </Link>
+              <button
+                type="button"
+                aria-label="Sign out"
+                onClick={() => {
+                  void logout().then((success) => {
+                    if (success) router.replace("/");
+                  });
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-cream-200 bg-white px-3 py-2 text-sm font-medium text-warmgray-700 hover:border-brand-300"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Sign out</span>
+              </button>
+            </div>
           </header>
           <main id="main" className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
             {!ready ? <p className="text-sm text-warmgray-600">Loading demo data…</p> : children}
