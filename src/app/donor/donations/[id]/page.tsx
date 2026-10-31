@@ -39,6 +39,11 @@ export default function DonationDetailPage() {
           </div>
           <DonationStatusBadge status={donation.status} />
         </div>
+        {donation.animalShelterOnly && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            This listing is designated for animal shelters only. Suitability is donor-declared, not independently verified.
+          </p>
+        )}
         <PickupCountdown deadline={donation.pickupWindowEnd} />
         <dl className="grid gap-3 rounded-2xl border border-cream-200 bg-white p-4 sm:grid-cols-2">
           <div>

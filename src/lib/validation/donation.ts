@@ -20,6 +20,7 @@ export const donationFormSchema = z
     storage: z.enum(["ambient", "refrigerated", "frozen", "hot_hold"]),
     handlingRequirements: z.array(z.enum(["keep_cold", "keep_hot", "upright", "fragile", "time_sensitive"])),
     packagingAvailable: z.boolean(),
+    animalShelterOnly: z.boolean().default(false),
     pickupLocation: geoSchema,
     pickupWindowStart: z.string().min(1),
     pickupWindowEnd: z.string().min(1),

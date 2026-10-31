@@ -5,8 +5,10 @@ import { useDemo } from "@/components/providers/DemoProvider";
 import { DEMO_PERSONAS } from "@/lib/data/seed";
 import type { AccountRole } from "@/lib/auth/service";
 import type { AuthenticatedAccount } from "@/lib/auth/types";
+import type { NgoRecipientType } from "@/lib/domain/types";
 import { ArrowLeft, ArrowRight, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
 type AccountMode = "login" | "register";
@@ -37,6 +39,7 @@ export function LoginExperience() {
   const router = useRouter();
   const [mode, setMode] = useState<AccountMode>("login");
   const [role, setRole] = useState<AccountRole>("donor");
+  const [recipientType, setRecipientType] = useState<NgoRecipientType>("community");
   const [name, setName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,6 +72,7 @@ export function LoginExperience() {
           phone,
           address,
           role,
+          recipientType: role === "ngo" ? recipientType : undefined,
         });
         setChallenge(result);
         setMessage(result.message);
@@ -146,8 +150,10 @@ export function LoginExperience() {
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="hidden space-y-8 lg:block">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-600 font-bold text-white">RR</span>
-            <span className="text-xl font-bold">RescueRelay</span>
+            <Link href="/" className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-600 font-bold text-white">RR</span>
+              <span className="text-xl font-bold">RescueRelay</span>
+            </Link>
           </div>
           <div className="max-w-xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-800">Rescue more. Waste less.</p>
@@ -170,10 +176,10 @@ export function LoginExperience() {
 
         <section className="mx-auto w-full max-w-lg">
           <header className="mb-5 flex items-center justify-between lg:hidden">
-            <div className="flex items-center gap-2 font-semibold">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">RR</span>
               RescueRelay
-            </div>
+            </Link>
             <ThemeToggle />
           </header>
           <article className="rounded-3xl border border-cream-200 bg-white p-5 shadow-panel sm:p-8">
@@ -274,13 +280,31 @@ export function LoginExperience() {
                           <option value="volunteer">Volunteer courier</option>
                         </select>
                       </label>
+                      {role === "ngo" && (
+                        <label className="block text-sm font-medium">
+                          Recipient organization type
+                          <select
+                            value={recipientType}
+                            onChange={(event) => setRecipientType(event.target.value as NgoRecipientType)}
+                            className="mt-1 w-full rounded-xl border px-3 py-2.5"
+                          >
+                            <option value="community">Community kitchen / NGO</option>
+                            <option value="animal_shelter">Animal shelter</option>
+                          </select>
+                          {recipientType === "animal_shelter" && (
+                            <span className="mt-1 block text-xs font-normal text-warmgray-500">
+                              Animal shelters are matched only with food donors explicitly designate as suitable for animals.
+                            </span>
+                          )}
+                        </label>
+                      )}
                       <label className="block text-sm font-medium">
                         Your name
                         <input required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2.5" autoComplete="name" />
                       </label>
                       {role !== "volunteer" && (
                         <label className="block text-sm font-medium">
-                          Restaurant or organization name
+                          {role === "donor" ? "Restaurant or organization name" : "Organization or shelter name"}
                           <input required minLength={2} maxLength={120} value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2.5" autoComplete="organization" />
                         </label>
                       )}

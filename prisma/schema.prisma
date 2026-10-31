@@ -14,6 +14,11 @@ enum Role {
   admin
 }
 
+enum NgoRecipientType {
+  community
+  animal_shelter
+}
+
 enum DonationStatus {
   available
   reserved
@@ -59,18 +64,18 @@ model User {
   orgId       String?
   volunteerId String?
 
-  notifications Notification[]
-  incidents     IncidentReport[]
-  handoffs      HandoffEvent[]
-  credential    UserCredential?
+  notifications   Notification[]
+  incidents       IncidentReport[]
+  handoffs        HandoffEvent[]
+  credential      UserCredential?
   emailChallenges EmailCodeChallenge[]
-  authSessions  AuthSession[]
+  authSessions    AuthSession[]
 
   @@map("users")
 }
 
 model DonorOrg {
-  id          String  @id
+  id          String                                @id
   name        String
   kind        String
   contactName String
@@ -86,8 +91,9 @@ model DonorOrg {
 }
 
 model NgoProfile {
-  id                      String    @id
+  id                      String                                @id
   name                    String
+  recipientType           NgoRecipientType                      @default(community)
   coordinatorName         String
   phone                   String
   address                 String
@@ -111,21 +117,21 @@ model NgoProfile {
 }
 
 model VolunteerProfile {
-  id                    String  @id
-  userId                String  @unique
-  name                  String
-  phone                 String
-  address               String
-  latitude              Float
-  longitude             Float
-  location              Unsupported("geography(Point,4326)")?
-  available             Boolean
-  standby               Boolean
-  transportType         String
-  carryingCapacity      Int
-  capacityUnit          QuantityUnit
-  handlingCapabilities  String
-  notes                 String?
+  id                   String                                @id
+  userId               String                                @unique
+  name                 String
+  phone                String
+  address              String
+  latitude             Float
+  longitude            Float
+  location             Unsupported("geography(Point,4326)")?
+  available            Boolean
+  standby              Boolean
+  transportType        String
+  carryingCapacity     Int
+  capacityUnit         QuantityUnit
+  handlingCapabilities String
+  notes                String?
 
   tasks RescueTask[]
 
@@ -133,41 +139,42 @@ model VolunteerProfile {
 }
 
 model Donation {
-  id                     String         @id
-  donorOrgId             String
-  createdByUserId        String
-  title                  String
-  description            String
-  category               FoodCategory
-  quantity               Float
-  unit                   QuantityUnit
-  estimatedPortions      Float?
-  dietaryTags            String
-  allergens              String
-  preparedAt             DateTime?
-  storage                String
-  handlingRequirements   String
-  packagingAvailable     Boolean
-  pickupAddress          String
-  latitude               Float
-  longitude              Float
-  location               Unsupported("geography(Point,4326)")?
-  pickupWindowStart      DateTime
-  pickupWindowEnd        DateTime
-  contactName            String
-  contactPhone           String
-  photoDataUrl           String?
-  handlingAcknowledged   Boolean
-  status                 DonationStatus
-  reservedNgoId          String?
-  acceptedQuantity       Float?
-  rejectionReason        String?
-  cancellationReason     String?
-  failureReason          String?
-  createdAt              DateTime
-  updatedAt              DateTime
+  id                   String                                @id
+  donorOrgId           String
+  createdByUserId      String
+  title                String
+  description          String
+  category             FoodCategory
+  quantity             Float
+  unit                 QuantityUnit
+  estimatedPortions    Float?
+  dietaryTags          String
+  allergens            String
+  preparedAt           DateTime?
+  storage              String
+  handlingRequirements String
+  packagingAvailable   Boolean
+  animalShelterOnly    Boolean                               @default(false)
+  pickupAddress        String
+  latitude             Float
+  longitude            Float
+  location             Unsupported("geography(Point,4326)")?
+  pickupWindowStart    DateTime
+  pickupWindowEnd      DateTime
+  contactName          String
+  contactPhone         String
+  photoDataUrl         String?
+  handlingAcknowledged Boolean
+  status               DonationStatus
+  reservedNgoId        String?
+  acceptedQuantity     Float?
+  rejectionReason      String?
+  cancellationReason   String?
+  failureReason        String?
+  createdAt            DateTime
+  updatedAt            DateTime
 
-  donorOrg DonorOrg      @relation(fields: [donorOrgId], references: [id])
+  donorOrg DonorOrg        @relation(fields: [donorOrgId], references: [id])
   tasks    RescueTask[]
   handoffs HandoffEvent[]
   timeline TimelineEvent[]
@@ -199,16 +206,16 @@ model NeedsRequest {
 }
 
 model RescueTask {
-  id                  String     @id
-  donationId          String
-  ngoId               String
-  volunteerId         String?
-  status              TaskStatus
-  standbyNotifiedIds  String
-  cancellationReason  String?
-  failureReason       String?
-  createdAt           DateTime
-  updatedAt           DateTime
+  id                 String     @id
+  donationId         String
+  ngoId              String
+  volunteerId        String?
+  status             TaskStatus
+  standbyNotifiedIds String
+  cancellationReason String?
+  failureReason      String?
+  createdAt          DateTime
+  updatedAt          DateTime
 
   donation  Donation          @relation(fields: [donationId], references: [id])
   ngo       NgoProfile        @relation(fields: [ngoId], references: [id])
@@ -230,15 +237,15 @@ model HandoffEvent {
   method      String
   createdAt   DateTime
 
-  donation Donation @relation(fields: [donationId], references: [id])
+  donation Donation   @relation(fields: [donationId], references: [id])
   task     RescueTask @relation(fields: [taskId], references: [id])
-  actor    User     @relation(fields: [actorUserId], references: [id])
+  actor    User       @relation(fields: [actorUserId], references: [id])
 
   @@map("handoff_events")
 }
 
 model TimelineEvent {
-  id          String  @id
+  id          String   @id
   donationId  String
   taskId      String?
   label       String
@@ -295,13 +302,13 @@ model FailureRecord {
 }
 
 model ImpactConfigRow {
-  id                       String @id @default("default")
-  mealEquivalentServings   Float
-  mealEquivalentKg         Float
-  mealEquivalentPackets    Float
-  mealEquivalentBoxes      Float
-  kgCo2ePerMealEquivalent  Float
-  notes                    String
+  id                      String @id @default("default")
+  mealEquivalentServings  Float
+  mealEquivalentKg        Float
+  mealEquivalentPackets   Float
+  mealEquivalentBoxes     Float
+  kgCo2ePerMealEquivalent Float
+  notes                   String
 
   @@map("impact_config")
 }

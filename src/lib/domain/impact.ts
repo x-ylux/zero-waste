@@ -5,7 +5,9 @@ export interface ImpactTotals {
   listedByUnit: Record<QuantityUnit, number>;
   collectedByUnit: Record<QuantityUnit, number>;
   acceptedByUnit: Record<QuantityUnit, number>;
+  animalAcceptedByUnit: Record<QuantityUnit, number>;
   completedDeliveries: number;
+  animalShelterDeliveries: number;
   estimatedMealEquivalents: number;
   estimatedAvoidedCo2eKg: number;
   label: string;
@@ -33,7 +35,9 @@ export function calculateImpact(donations: Donation[]): ImpactTotals {
   const listedByUnit = emptyUnits();
   const collectedByUnit = emptyUnits();
   const acceptedByUnit = emptyUnits();
+  const animalAcceptedByUnit = emptyUnits();
   let completedDeliveries = 0;
+  let animalShelterDeliveries = 0;
 
   for (const donation of donations) {
     addUnit(listedByUnit, donation.unit, donation.quantity);
@@ -41,8 +45,13 @@ export function calculateImpact(donations: Donation[]): ImpactTotals {
       addUnit(collectedByUnit, donation.unit, donation.quantity);
     }
     if (donation.status === "delivered" && typeof donation.acceptedQuantity === "number") {
-      addUnit(acceptedByUnit, donation.unit, donation.acceptedQuantity);
       completedDeliveries += 1;
+      if (donation.animalShelterOnly) {
+        addUnit(animalAcceptedByUnit, donation.unit, donation.acceptedQuantity);
+        animalShelterDeliveries += 1;
+      } else {
+        addUnit(acceptedByUnit, donation.unit, donation.acceptedQuantity);
+      }
     }
   }
 
@@ -53,7 +62,9 @@ export function calculateImpact(donations: Donation[]): ImpactTotals {
     listedByUnit,
     collectedByUnit,
     acceptedByUnit,
+    animalAcceptedByUnit,
     completedDeliveries,
+    animalShelterDeliveries,
     estimatedMealEquivalents,
     estimatedAvoidedCo2eKg,
     label: IMPACT_CONFIG.label,

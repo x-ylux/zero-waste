@@ -9,7 +9,7 @@ export const IMPACT_CONFIG = {
   assumptions: [
     "Accepted quantity is the only quantity counted toward meals or CO2e.",
     "Units are never added together. Each unit family is converted separately, then meal equivalents are summed.",
-    "CO2e uses a generic literature-style factor for uneaten food, not a verified carbon credit.",
+    "CO2e uses a generic literature-style factor for human food rescue, not a verified carbon credit; animal-shelter deliveries are excluded.",
     "Pickup countdowns and QR records are operational metadata, not food-safety certification.",
   ],
   mealEquivalents: {

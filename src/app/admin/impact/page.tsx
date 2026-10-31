@@ -42,6 +42,7 @@ export default function ImpactPage() {
               ["Quantity listed", impact.listedByUnit],
               ["Quantity collected", impact.collectedByUnit],
               ["Quantity accepted", impact.acceptedByUnit],
+              ["Animal-shelter quantity accepted", impact.animalAcceptedByUnit],
             ] as const
           ).map(([label, units]) => (
             <article key={label} className="rounded-2xl border border-cream-200 bg-white p-4">
@@ -95,7 +96,8 @@ export default function ImpactPage() {
           </ul>
         </section>
         <section className="text-xs text-warmgray-600">
-          <p>Assumptions:</p>
+          <p>Animal-shelter deliveries are tracked separately and excluded from meal-equivalent and CO₂e estimates.</p>
+          <p className="mt-2">Assumptions:</p>
           <ul className="list-disc pl-5">
             {IMPACT_CONFIG.assumptions.map((item) => (
               <li key={item}>{item}</li>

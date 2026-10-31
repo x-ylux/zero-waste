@@ -102,6 +102,12 @@ export function evaluateNgoMatch(
   if (donation.status !== "available") {
     hardFailures.push("Donation is not active and available.");
   }
+  if (donation.animalShelterOnly && ngo.recipientType !== "animal_shelter") {
+    hardFailures.push("This donation is designated exclusively for an animal shelter.");
+  }
+  if (ngo.recipientType === "animal_shelter" && !donation.animalShelterOnly) {
+    hardFailures.push("Animal shelters can only receive food explicitly designated as animal-suitable.");
+  }
   const categoryOk = requiredCategories.includes(donation.category);
   if (!categoryOk) {
     hardFailures.push("Recipient does not accept this food category.");

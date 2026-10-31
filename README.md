@@ -6,10 +6,11 @@ RescueRelay is a Bengaluru-focused surplus-food rescue prototype. It connects re
 
 The default demo uses a **mock repository with browser localStorage**. You do **not** need PostgreSQL credentials or a Google Maps API key to explore the product.
 
-- The entry page offers sign-in, registration, and clearly labeled demo accounts
+- The public home page summarizes rescued food, available listings, and estimated CO₂e; sign-in, registration, and demo accounts are at `/login`
 - Real email-code authentication requires PostgreSQL, a Resend sender, and an `AUTH_SECRET`; it never falls back to fake codes
-- Missing Maps key → attractive **location-list fallback** (not a blank map or hard error)
-- Location board → responsive, data-fitted schematic map with selectable pins; distances remain straight-line estimates
+- Missing Maps key → schematic map fallback; with a restricted Google Maps JavaScript API key, location boards render real Google Maps
+- Device location is requested only after a visitor clicks **Use my location**; the browser sends it to Google Maps for display, and RescueRelay does not store it
+- Animal shelters can register as a recipient subtype; they only see food donors explicitly designate for animal shelters
 - Theme → light/dark toggle, with a 60-30-10 balance of dominant background, secondary surfaces, and emerald accent
 - Donor dashboard → end-of-day leftover estimate from known outcomes in the previous 30 days
 - Notifications are labelled as **simulated**
@@ -37,24 +38,45 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Choose a **Demo account** on the entry page (demonstration only — it skips email verification and uses localStorage sample data):
+Open the public overview at `/`. Choose **Sign in / Register** to enter a **Demo account** (demonstration only — it skips email verification and uses localStorage sample data):
 
 1. Donor
 2. NGO coordinator
-3. Volunteer
-4. Platform administrator
+3. Animal shelter
+4. Volunteer
+5. Platform administrator
 
 **Reset Demo Data** regenerates seed listings with pickup windows relative to the current time.
 
-## Optional database mode
+## Google Maps
+
+Create a Google Maps Platform project, enable billing and the Maps JavaScript API, then create a browser key restricted to your site’s referrers. Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `.env` and restart the development server. The key is necessarily visible in browser requests; never use an unrestricted key or put server secrets in this variable. Without a key, location boards use the schematic fallback. Device location is requested only after the visitor clicks the location button.
+
+Animal shelters can register as an NGO recipient subtype and are matched only with listings donors explicitly designate as animal-shelter-only. Donors must confirm suitability for the intended species; the app does not certify food safety. These deliveries are reported separately and excluded from human meal-equivalent and CO₂e estimates.
+
+## Native PostgreSQL + PostGIS
 
 ```powershell
 Copy-Item .env.example .env
-# Then set DATABASE_URL to the local Docker credential, for example:
-# postgresql://rescuerelay:rescuerelay_password@localhost:5432/rescuerelay_db?schema=public
-npm run db:up
+# Install PostGIS for your PostgreSQL version, then update DATABASE_URL in .env
+# with the username and password of a local PostgreSQL role.
 npx prisma migrate deploy
 npx prisma generate
+```
+
+The database must have the PostGIS extension available. Have a PostgreSQL administrator create the database and enable the extension before running migrations:
+
+```sql
+CREATE DATABASE rescuerelay_db;
+\connect rescuerelay_db
+CREATE EXTENSION postgis;
+```
+
+Then configure `DATABASE_URL` in `.env`, for example `postgresql://postgres:your-local-password@localhost:5432/rescuerelay_db?schema=public`. URL-encode any special characters in the password. Do not commit `.env`.
+
+To load the optional demo seed data:
+
+```powershell
 npm run db:seed
 ```
 

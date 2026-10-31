@@ -13,7 +13,7 @@ import type {
   VolunteerProfile,
 } from "@/lib/domain/types";
 
-export const DEMO_STATE_VERSION = "rescuerelay-demo-v2";
+export const DEMO_STATE_VERSION = "rescuerelay-demo-v3";
 
 function atHours(now: Date, hours: number): string {
   return new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
@@ -71,6 +71,7 @@ export function createSeedState(now: Date = new Date()): AppState {
     {
       id: "ngo-annapurna",
       name: "Annapurna Night Shelter",
+      recipientType: "community",
       coordinatorName: "Sister Anjali",
       phone: "+91 98000 22001",
       location: { lat: 12.9716, lng: 77.5946, address: "Shivajinagar Care Centre, Bengaluru" },
@@ -87,6 +88,7 @@ export function createSeedState(now: Date = new Date()): AppState {
     {
       id: "ngo-hunger",
       name: "Hunger Relief Bengaluru",
+      recipientType: "community",
       coordinatorName: "Imran Khan",
       phone: "+91 98000 22002",
       location: { lat: 13.006, lng: 77.569, address: "Malleswaram Community Kitchen, Bengaluru" },
@@ -103,6 +105,7 @@ export function createSeedState(now: Date = new Date()): AppState {
     {
       id: "ngo-sneha",
       name: "Sneha Children's Kitchen",
+      recipientType: "community",
       coordinatorName: "Meera Iyer",
       phone: "+91 98000 22003",
       location: { lat: 12.9279, lng: 77.6271, address: "Koramangala 8th Block, Bengaluru" },
@@ -119,6 +122,7 @@ export function createSeedState(now: Date = new Date()): AppState {
     {
       id: "ngo-sahaara",
       name: "Sahaara Community Pantry",
+      recipientType: "community",
       coordinatorName: "Joseph D'Souza",
       phone: "+91 98000 22004",
       location: { lat: 13.0358, lng: 77.597, address: "Hebbal Warehouse Lane, Bengaluru" },
@@ -131,6 +135,23 @@ export function createSeedState(now: Date = new Date()): AppState {
       maxAcceptableQuantity: 120,
       quantityUnit: "kg",
       lastCompletedDonationAt: atHours(now, -12),
+    },
+    {
+      id: "ngo-safe-paws",
+      name: "Safe Paws Animal Shelter",
+      recipientType: "animal_shelter",
+      coordinatorName: "Asha Menon",
+      phone: "+91 98000 22005",
+      location: { lat: 12.956, lng: 77.601, address: "Richmond Town Animal Care Centre, Bengaluru" },
+      acceptedCategories: ["packaged_food", "other"],
+      dietaryRequirements: [],
+      storageCapabilities: ["ambient", "refrigerated"],
+      handlingCapabilities: ["upright", "time_sensitive"],
+      receivingHoursStart: "08:00",
+      receivingHoursEnd: "22:00",
+      maxAcceptableQuantity: 100,
+      quantityUnit: "kg",
+      lastCompletedDonationAt: null,
     },
   ];
 
@@ -264,6 +285,7 @@ export function createSeedState(now: Date = new Date()): AppState {
     { id: "user-donor-lakshmi", name: "Lakshmi Rao", email: "lakshmi@rvmess.demo", role: "donor", orgId: "donor-rv-mess", phone: donors[2].phone },
     { id: "user-ngo-anjali", name: "Sister Anjali", email: "anjali@annapurna.demo", role: "ngo", orgId: "ngo-annapurna", phone: ngos[0].phone },
     { id: "user-ngo-imran", name: "Imran Khan", email: "imran@hungerrelief.demo", role: "ngo", orgId: "ngo-hunger", phone: ngos[1].phone },
+    { id: "user-ngo-asha", name: "Asha Menon", email: "asha@safepaws.demo", role: "ngo", orgId: "ngo-safe-paws", phone: ngos[4].phone },
     { id: "user-admin", name: "Kabir Rao", email: "admin@rescuerelay.demo", role: "admin" },
     ...volunteers.map((v) => ({
       id: v.userId,
@@ -802,6 +824,7 @@ export function createSeedState(now: Date = new Date()): AppState {
 export const DEMO_PERSONAS: { role: User["role"]; userId: string; label: string; subtitle: string }[] = [
   { role: "donor", userId: "user-donor-maya", label: "Donor", subtitle: "Maya Reddy · Green Fork Kitchen" },
   { role: "ngo", userId: "user-ngo-anjali", label: "NGO coordinator", subtitle: "Sister Anjali · Annapurna Night Shelter" },
+  { role: "ngo", userId: "user-ngo-asha", label: "Animal shelter", subtitle: "Asha Menon · Safe Paws Animal Shelter" },
   { role: "volunteer", userId: "user-vol-aarav", label: "Volunteer", subtitle: "Aarav Mehta · scooter, assigned run" },
   { role: "admin", userId: "user-admin", label: "Platform administrator", subtitle: "Kabir Rao · operations" },
 ];

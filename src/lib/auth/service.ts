@@ -49,6 +49,7 @@ export interface RegisterAccountInput {
   phone: string;
   address: string;
   role: AccountRole;
+  recipientType?: "community" | "animal_shelter";
   organizationName?: string;
 }
 
@@ -193,14 +194,18 @@ export async function registerAccount(input: RegisterAccountInput) {
           },
         });
       } else if (input.role === "ngo" && orgId) {
-        const categories = ["cooked_meals", "bakery", "produce"];
-        const dietary = ["vegetarian"];
-        const storage = ["refrigerated", "ambient"];
-        const handling = ["keep_cold", "upright", "time_sensitive"];
+        const animalShelter = input.recipientType === "animal_shelter";
+        const categories = animalShelter
+          ? ["packaged_food", "other"]
+          : ["cooked_meals", "bakery", "produce"];
+        const dietary = animalShelter ? [] : ["vegetarian"];
+        const storage = animalShelter ? ["ambient", "refrigerated"] : ["refrigerated", "ambient"];
+        const handling = animalShelter ? ["upright", "time_sensitive"] : ["keep_cold", "upright", "time_sensitive"];
         await transaction.ngoProfile.create({
           data: {
             id: orgId,
             name: input.organizationName!.trim(),
+            recipientType: input.recipientType ?? "community",
             coordinatorName: input.name.trim(),
             phone: input.phone.trim(),
             address: input.address.trim(),
@@ -213,7 +218,7 @@ export async function registerAccount(input: RegisterAccountInput) {
             receivingHoursStart: "08:00",
             receivingHoursEnd: "22:00",
             maxAcceptableQuantity: 100,
-            quantityUnit: "servings",
+            quantityUnit: animalShelter ? "kg" : "servings",
           },
         });
         await transaction.needsRequest.create({
@@ -222,7 +227,7 @@ export async function registerAccount(input: RegisterAccountInput) {
             ngoId: orgId,
             requiredCategories: JSON.stringify(categories),
             requestedQuantity: 100,
-            quantityUnit: "servings",
+            quantityUnit: animalShelter ? "kg" : "servings",
             dietaryRequirements: JSON.stringify(dietary),
             receivingHoursStart: "08:00",
             receivingHoursEnd: "22:00",
@@ -394,9 +399,13 @@ export async function getAuthenticatedAccount(token: string): Promise<Authentica
     const profile = await prisma.ngoProfile.findUnique({ where: { id: user.orgId } });
     const needsRecord = await prisma.needsRequest.findUnique({ where: { ngoId: user.orgId } });
     if (!profile || !needsRecord) throw new Error("NGO account is missing its profile or needs request.");
+    if (profile.recipientType !== "community" && profile.recipientType !== "animal_shelter") {
+      throw new Error("NGO account has an unsupported recipient type.");
+    }
     const ngo: NgoProfile = {
       id: profile.id,
       name: profile.name,
+      recipientType: profile.recipientType,
       coordinatorName: profile.coordinatorName,
       phone: profile.phone,
       location: { lat: profile.latitude, lng: profile.longitude, address: profile.address },

@@ -26,6 +26,7 @@ export default function NgoDashboardPage() {
   const listings = useMemo(() => {
     return state.donations
       .filter((donation) => {
+        if (ngo && (ngo.recipientType === "animal_shelter") !== Boolean(donation.animalShelterOnly)) return false;
         if (category !== "all" && donation.category !== category) return false;
         if (diet !== "all" && !donation.dietaryTags.includes(diet)) return false;
         if (donation.quantity < minQty) return false;
@@ -44,8 +45,12 @@ export default function NgoDashboardPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">NGO dashboard</h1>
-            <p className="text-sm text-warmgray-600">Browse available surplus, read match reasons, and reserve what you can store.</p>
+            <h1 className="text-2xl font-bold">{ngo?.recipientType === "animal_shelter" ? "Animal shelter dashboard" : "NGO dashboard"}</h1>
+            <p className="text-sm text-warmgray-600">
+              {ngo?.recipientType === "animal_shelter"
+                ? "Browse food donors have specifically designated for animal shelters. Confirm suitability for your animals before reserving."
+                : "Browse available surplus, read match reasons, and reserve what you can store."}
+            </p>
           </div>
           <Link href="/ngo/needs" className="rounded-xl border border-brand-300 px-4 py-2 text-sm font-semibold text-brand-800">
             Edit needs request
@@ -109,6 +114,9 @@ export default function NgoDashboardPage() {
                 <div className="flex flex-wrap justify-between gap-2">
                   <div>
                     <h2 className="font-semibold">{donation.title}</h2>
+                    {donation.animalShelterOnly && (
+                      <p className="text-xs font-semibold text-amber-800">Designated for animal shelters only</p>
+                    )}
                     <p className="text-sm text-warmgray-600">
                       {donation.quantity} {UNIT_LABELS[donation.unit]} · window {formatDateTime(donation.pickupWindowStart)} – {formatDateTime(donation.pickupWindowEnd)}
                     </p>

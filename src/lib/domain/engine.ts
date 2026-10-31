@@ -129,6 +129,7 @@ export interface DonationInput {
   storage: Donation["storage"];
   handlingRequirements: HandlingRequirement[];
   packagingAvailable: boolean;
+  animalShelterOnly?: boolean;
   pickupLocation: Donation["pickupLocation"];
   pickupWindowStart: string;
   pickupWindowEnd: string;
@@ -154,6 +155,7 @@ export function createDonation(state: AppState, userId: string, input: DonationI
     const next = cloneState(state);
     const donation: Donation = {
       ...input,
+      animalShelterOnly: input.animalShelterOnly ?? false,
       id: createId("don"),
       donorOrgId: user.orgId,
       createdByUserId: userId,

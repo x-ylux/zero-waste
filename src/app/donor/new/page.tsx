@@ -46,6 +46,7 @@ export default function CreateDonationPage() {
   const [storage, setStorage] = useState<StorageType>("hot_hold");
   const [handling, setHandling] = useState<HandlingRequirement[]>(["keep_hot", "time_sensitive"]);
   const [packaging, setPackaging] = useState(true);
+  const [animalShelterOnly, setAnimalShelterOnly] = useState(false);
   const [address, setAddress] = useState(org?.location.address ?? "");
   const [lat, setLat] = useState(org?.location.lat ?? 12.9352);
   const [lng, setLng] = useState(org?.location.lng ?? 77.6245);
@@ -72,6 +73,7 @@ export default function CreateDonationPage() {
       storage,
       handlingRequirements: handling,
       packagingAvailable: packaging,
+      animalShelterOnly,
       pickupLocation: { lat, lng, address },
       pickupWindowStart: new Date(windowStart).toISOString(),
       pickupWindowEnd: new Date(windowEnd).toISOString(),
@@ -176,6 +178,22 @@ export default function CreateDonationPage() {
           <input type="checkbox" checked={packaging} onChange={(e) => setPackaging(e.target.checked)} />
           Packaging available
         </label>
+        <fieldset className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <label className="flex items-start gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={animalShelterOnly}
+              onChange={(event) => setAnimalShelterOnly(event.target.checked)}
+            />
+            Designate this listing for animal shelters only
+          </label>
+          {animalShelterOnly && (
+            <p className="mt-2 text-xs leading-relaxed text-amber-950">
+              Confirm this specific food is suitable for the intended animal species. It will only be shown to animal shelters, and animal-shelter-only donations are excluded from meal and CO₂e estimates.
+            </p>
+          )}
+        </fieldset>
         <label className="text-sm font-medium">
           Pickup address
           <input className="mt-1 w-full rounded-xl border border-cream-300 px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />

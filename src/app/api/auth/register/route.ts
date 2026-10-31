@@ -10,6 +10,7 @@ const registerSchema = z.object({
   phone: z.string().trim().min(7).max(30),
   address: z.string().trim().min(3).max(200),
   role: z.enum(["donor", "ngo", "volunteer"]),
+  recipientType: z.enum(["community", "animal_shelter"]).optional(),
   organizationName: z.string().trim().min(2).max(120).optional(),
 }).superRefine((account, context) => {
   if (account.role !== "volunteer" && !account.organizationName) {

@@ -8,6 +8,7 @@ import { classNames } from "@/lib/format";
 import {
   Bell,
   HeartHandshake,
+  House,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -52,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [isAuthorized, ready, router]);
   const unread = state.notifications.filter((item) => item.userId === user.id && !item.read).length;
   const links = NAV[user.role];
+  const allLinks = [{ href: "/", label: "Home", icon: House }, ...links];
   const personas = DEMO_PERSONAS;
   const roleHome = {
     donor: "/donor",
@@ -131,7 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
           <nav className="mt-6 space-y-1" aria-label="Primary">
-            {links.map((link) => {
+            {allLinks.map((link) => {
               const Icon = link.icon;
               const active = pathname === link.href;
               return (

@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "RescueRelay — surplus food matching",
   description:
-    "RescueRelay matches edible surplus from restaurants, caterers, and campus mess halls with NGO kitchens and volunteer couriers.",
+    "RescueRelay connects surplus-food donors with community kitchens, animal shelters, and volunteer couriers.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,5 @@
-import { LoginExperience } from "@/components/auth/LoginExperience";
+import { HomeExperience } from "@/components/home/HomeExperience";
 
 export default function LandingPage() {
-  return <LoginExperience />;
+  return <HomeExperience />;
 }

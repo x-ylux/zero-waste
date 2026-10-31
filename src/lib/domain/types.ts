@@ -1,4 +1,5 @@
 export type Role = "donor" | "ngo" | "volunteer" | "admin";
+export type NgoRecipientType = "community" | "animal_shelter";
 
 export type DonationStatus =
   | "available"
@@ -98,6 +99,7 @@ export interface DonorOrg {
 export interface NgoProfile {
   id: string;
   name: string;
+  recipientType: NgoRecipientType;
   coordinatorName: string;
   phone: string;
   location: GeoPoint;
@@ -160,6 +162,7 @@ export interface Donation {
   storage: StorageType;
   handlingRequirements: HandlingRequirement[];
   packagingAvailable: boolean;
+  animalShelterOnly?: boolean;
   pickupLocation: GeoPoint;
   pickupWindowStart: string;
   pickupWindowEnd: string;

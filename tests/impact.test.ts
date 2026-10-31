@@ -83,4 +83,18 @@ describe("impact calculation", () => {
     expect(duplicate.ok).toBe(false);
     expect(calculateImpact(state.donations).acceptedByUnit.servings).toBe(after);
   });
+
+  it("keeps animal-shelter deliveries out of human meal and CO2e estimates", () => {
+    const state = createSeedState(now);
+    const deliveredForAnimals = {
+      ...state.donations.find((item) => item.id === "don-07")!,
+      animalShelterOnly: true,
+    };
+    const impact = calculateImpact([deliveredForAnimals]);
+
+    expect(impact.animalAcceptedByUnit.servings).toBe(68);
+    expect(impact.acceptedByUnit.servings).toBe(0);
+    expect(impact.estimatedMealEquivalents).toBe(0);
+    expect(impact.estimatedAvoidedCo2eKg).toBe(0);
+  });
 });

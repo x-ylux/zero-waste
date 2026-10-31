@@ -41,4 +41,31 @@ describe("needs-based matching", () => {
     expect(result.eligible).toBe(false);
     expect(result.hardFailures.join(" ")).toMatch(/quantity/i);
   });
+
+  it("only matches animal-shelter donations to animal-shelter recipients", () => {
+    const community = state.ngos.find((item) => item.id === "ngo-annapurna")!;
+    const animalShelter = state.ngos.find((item) => item.id === "ngo-safe-paws")!;
+    const communityNeeds = state.needs.find((item) => item.ngoId === community.id)!;
+    const animalNeeds = state.needs.find((item) => item.ngoId === animalShelter.id)!;
+    const animalOnlyDonation = {
+      ...donation,
+      animalShelterOnly: true,
+      category: "packaged_food" as const,
+      quantity: 2,
+      unit: "kg" as const,
+      dietaryTags: [],
+      storage: "ambient" as const,
+      handlingRequirements: ["upright" as const],
+    };
+
+    const humanMatch = matchDonationToNgos(animalOnlyDonation, [community], [communityNeeds], now)[0];
+    const shelterMatch = matchDonationToNgos(animalOnlyDonation, [animalShelter], [animalNeeds], now)[0];
+    const unmarkedDonationMatch = matchDonationToNgos(donation, [animalShelter], [animalNeeds], now)[0];
+
+    expect(humanMatch.eligible).toBe(false);
+    expect(humanMatch.hardFailures.join(" ")).toMatch(/animal shelter/i);
+    expect(shelterMatch.eligible).toBe(true);
+    expect(unmarkedDonationMatch.eligible).toBe(false);
+    expect(unmarkedDonationMatch.hardFailures.join(" ")).toMatch(/animal-suitable/i);
+  });
 });
