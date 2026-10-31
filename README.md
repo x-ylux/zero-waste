@@ -1,6 +1,6 @@
 # RescueRelay
 
-**RescueRelay helps restaurants get surplus food to community kitchens and animal shelters before it goes to waste.** The Bengaluru-focused prototype coordinates donors, recipients, and volunteer couriers from listing through pickup and handoff.
+**RescueRelay helps restaurants get surplus food to community kitchens and animal shelters before it goes to waste.** The prototype coordinates donors, recipients, and volunteer couriers from listing through pickup and handoff.
 
 ## What it does
 
