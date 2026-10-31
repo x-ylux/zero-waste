@@ -2,6 +2,7 @@
 
 import { useDemo } from "@/components/providers/DemoProvider";
 import { calculateImpact } from "@/lib/domain/impact";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { HeartHandshake, Truck, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 
@@ -16,20 +17,15 @@ export default function LandingPage() {
         <Link href="/" className="text-lg font-semibold text-brand-800">
           RescueRelay
         </Link>
-        <nav className="flex gap-3 text-sm">
-          <Link href="/donor" className="rounded-lg px-3 py-2 hover:bg-white">
-            Donor
-          </Link>
-          <Link href="/ngo" className="rounded-lg px-3 py-2 hover:bg-white">
-            NGO
-          </Link>
-          <Link href="/volunteer" className="rounded-lg px-3 py-2 hover:bg-white">
-            Volunteer
-          </Link>
-          <Link href="/admin" className="rounded-lg px-3 py-2 hover:bg-white">
-            Admin
-          </Link>
-        </nav>
+        <div className="flex items-center gap-2">
+          <nav className="flex gap-1 text-sm sm:gap-3">
+            <Link href="/donor" className="rounded-lg px-2 py-2 hover:bg-white/10 sm:px-3">Donor</Link>
+            <Link href="/ngo" className="rounded-lg px-2 py-2 hover:bg-white/10 sm:px-3">NGO</Link>
+            <Link href="/volunteer" className="rounded-lg px-2 py-2 hover:bg-white/10 sm:px-3">Volunteer</Link>
+            <Link href="/admin" className="rounded-lg px-2 py-2 hover:bg-white/10 sm:px-3">Admin</Link>
+          </nav>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl space-y-10 px-4 pb-16">

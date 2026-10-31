@@ -13,7 +13,7 @@ import type {
   VolunteerProfile,
 } from "@/lib/domain/types";
 
-export const DEMO_STATE_VERSION = "rescuerelay-demo-v1";
+export const DEMO_STATE_VERSION = "rescuerelay-demo-v2";
 
 function atHours(now: Date, hours: number): string {
   return new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
@@ -161,9 +161,9 @@ export function createSeedState(now: Date = new Date()): AppState {
       available: true,
       standby: false,
       transportType: "scooter",
-      carryingCapacity: 40,
+      carryingCapacity: 90,
       capacityUnit: "servings",
-      handlingCapabilities: ["keep_hot", "time_sensitive", "upright"],
+      handlingCapabilities: ["keep_hot", "keep_cold", "time_sensitive", "upright"],
     },
     {
       id: "vol-priya",

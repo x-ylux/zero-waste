@@ -6,8 +6,12 @@ export function QrPanel({ value }: { value: string }) {
     const x = index % 21;
     const y = Math.floor(index / 21);
     const finder = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
-    const on = finder ? x === 0 || y === 0 || x === 6 || y === 6 || x === 20 || y === 20 || (x > 1 && x < 5 && y > 1 && y < 5) || ((x + y + modules) % 3 === 0);
-    return on;
+    if (!finder) {
+      return (x + y + modules) % 3 === 0;
+    }
+    const onBorder = x === 0 || y === 0 || x === 6 || y === 6 || x === 20 || y === 20;
+    const onInner = x > 1 && x < 5 && y > 1 && y < 5;
+    return onBorder || onInner;
   });
 
   return (

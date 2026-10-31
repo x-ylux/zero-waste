@@ -28,7 +28,11 @@ export default function QrHandoffPage() {
     );
   }
 
-  const canPickup = user.role === "volunteer" && task?.volunteerId === user.volunteerId && task.status === "assigned";
+  const canPickup =
+    user.role === "volunteer" &&
+    Boolean(task) &&
+    task?.volunteerId === user.volunteerId &&
+    task?.status === "assigned";
   const canReceipt = user.role === "ngo" && donation.reservedNgoId === user.orgId && donation.status === "collected";
 
   return (
@@ -88,13 +92,21 @@ export default function QrHandoffPage() {
             </ul>
           )}
         </section>
-        {canPickup && (
-          <button type="button" className="mt-4 w-full rounded-xl bg-brand-700 py-2 text-sm font-semibold text-white" onClick={() => confirmPickup(task.id, "qr")}>
+        {canPickup && task && (
+          <button
+            type="button"
+            className="mt-4 w-full rounded-xl bg-brand-700 py-2 text-sm font-semibold text-white"
+            onClick={() => confirmPickup(task.id, "qr")}
+          >
             Confirm pickup via QR
           </button>
         )}
-        {user.role === "volunteer" && task?.status === "assigned" && (
-          <button type="button" className="mt-2 w-full rounded-xl border py-2 text-sm" onClick={() => task && confirmPickup(task.id, "manual")}>
+        {user.role === "volunteer" && task && task.status === "assigned" && (
+          <button
+            type="button"
+            className="mt-2 w-full rounded-xl border py-2 text-sm"
+            onClick={() => confirmPickup(task.id, "manual")}
+          >
             Manual confirmation fallback
           </button>
         )}

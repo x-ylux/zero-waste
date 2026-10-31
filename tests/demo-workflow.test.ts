@@ -1,178 +1,83 @@
-import { randomUUID } from "crypto";
-import { afterAll, describe, expect, it } from "vitest";
-import { prisma } from "@/lib/prisma";
-import { AllocationService } from "@/lib/allocations/service";
-import { HandoverService } from "@/lib/handover/service";
-import { RecoveryWorker } from "@/lib/recovery/worker";
-import { calculateImpactMetrics } from "@/lib/impact/calculator";
-import { QuantityUnit } from "@prisma/client";
+import { describe, expect, it } from "vitest";
+import { createSeedState } from "@/lib/data/seed";
+import {
+  acceptTask,
+  confirmPickup,
+  confirmReceipt,
+  createDonation,
+  enterRescueMode,
+  reserveDonation,
+} from "@/lib/domain/engine";
+import { calculateImpact } from "@/lib/domain/impact";
 
-describe("Complete NGO-to-volunteer rescue workflow", () => {
-  const donationId = `donation-workflow-${randomUUID()}`;
-  const capacityWindowId = `capacity-workflow-${randomUUID()}`;
-  let allocationId: string | undefined;
+describe("end-to-end rescue workflow", () => {
+  it("runs donor → NGO → volunteer cancel → standby → pickup → receipt", () => {
+    const now = new Date("2026-10-31T12:00:00+05:30");
+    let state = createSeedState(now);
+    const beforeMeals = calculateImpact(state.donations).estimatedMealEquivalents;
 
-  afterAll(async () => {
-    if (allocationId) {
-      await prisma.handoverEvent.deleteMany({ where: { allocationId } });
-      await prisma.handoverChallenge.deleteMany({ where: { allocationId } });
-      await prisma.assignmentOffer.deleteMany({ where: { assignment: { allocationId } } });
-      await prisma.assignment.deleteMany({ where: { allocationId } });
-      await prisma.incident.deleteMany({ where: { allocationId } });
-      await prisma.allocation.deleteMany({ where: { id: allocationId } });
-    }
-    await prisma.capacityWindow.deleteMany({ where: { id: capacityWindowId } });
-    await prisma.donationItem.deleteMany({ where: { donationId } });
-    await prisma.donation.deleteMany({ where: { id: donationId } });
-  });
-
-  it("reserves, dispatches, recovers, verifies both handovers, and reconciles impact", async () => {
-    const donor = await prisma.organisation.findUniqueOrThrow({
-      where: { id: "org-donor-apex-campus" },
-    });
-    const donorUser = await prisma.user.findUniqueOrThrow({
-      where: { email: "donor.mess@rescueplate.org" },
-    });
-    const ngo = await prisma.organisation.findUniqueOrThrow({
-      where: { id: "org-ngo-annapurna" },
-    });
-    const ngoUser = await prisma.user.findUniqueOrThrow({
-      where: { email: "ngo.annapurna@rescueplate.org" },
-    });
-    const now = new Date();
-    const donation = await prisma.donation.create({
-      data: {
-        id: donationId,
-        donorOrgId: donor.id,
-        createdByUserId: donorUser.id,
-        title: "Workflow Test Meal Batch",
-        foodCategory: "COOKED_MEALS",
-        storageInfo: "HOT_HOLD",
-        packagingInfo: "SEALED_CONTAINERS",
-        pickupAddress: donor.address,
-        latitude: donor.latitude,
-        longitude: donor.longitude,
-        pickupWindowStart: new Date(now.getTime() + 5 * 60_000),
-        pickupWindowEnd: new Date(now.getTime() + 2 * 60 * 60_000),
-        status: "OPEN",
-        items: {
-          create: {
-            name: "Workflow Test Portions",
-            quantity: 20,
-            unit: QuantityUnit.SERVINGS,
-          },
-        },
+    const listed = createDonation(
+      state,
+      "user-donor-maya",
+      {
+        title: "Workflow surplus trays",
+        description: "Evening trays for the demo corridor.",
+        category: "cooked_meals",
+        quantity: 24,
+        unit: "servings",
+        dietaryTags: ["vegetarian"],
+        allergens: ["dairy"],
+        storage: "hot_hold",
+        handlingRequirements: ["keep_hot", "time_sensitive"],
+        packagingAvailable: true,
+        pickupLocation: state.donors[0].location,
+        pickupWindowStart: new Date(now.getTime() + 20 * 60_000).toISOString(),
+        pickupWindowEnd: new Date(now.getTime() + 4 * 60 * 60_000).toISOString(),
+        contactName: "Maya Reddy",
+        contactPhone: "+91 98000 11001",
+        handlingAcknowledged: true,
       },
-      include: { items: true },
-    });
-    await prisma.capacityWindow.create({
-      data: {
-        id: capacityWindowId,
-        organisationId: ngo.id,
-        startTime: new Date(now.getTime() - 60_000),
-        endTime: new Date(now.getTime() + 3 * 60 * 60_000),
-        unit: QuantityUnit.SERVINGS,
-        maxCapacity: 20,
-      },
-    });
+      now
+    );
+    expect(listed.ok).toBe(true);
+    if (!listed.ok) return;
+    state = listed.state;
+    const donationId = state.donations[0].id;
 
-    const allocation = await AllocationService.acceptAllocation({
-      donationId: donation.id,
-      donationItemId: donation.items[0].id,
-      ngoOrgId: ngo.id,
-      allocatedQuantity: 20,
-      unit: QuantityUnit.SERVINGS,
-      capacityWindowId,
-      actorUserId: ngoUser.id,
-    });
-    allocationId = allocation.id;
-    expect(allocation.status).toBe("AWAITING_VOLUNTEER");
+    const reserved = reserveDonation(state, "user-ngo-anjali", donationId, now);
+    expect(reserved.ok).toBe(true);
+    if (!reserved.ok) return;
+    state = reserved.state;
+    const taskId = state.tasks.find((item) => item.donationId === donationId)!.id;
 
-    const initialAssignment = await prisma.assignment.findFirstOrThrow({
-      where: { allocationId, isCurrent: true, status: "OFFERED" },
-    });
-    await prisma.assignment.update({
-      where: { id: initialAssignment.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
-    });
-    await prisma.assignmentOffer.updateMany({
-      where: { assignmentId: initialAssignment.id },
-      data: { status: "ACCEPTED", respondedAt: new Date() },
-    });
-    await prisma.allocation.update({
-      where: { id: allocationId },
-      data: { status: "ASSIGNED" },
-    });
+    const firstVolunteer = acceptTask(state, "user-vol-aarav", taskId, now);
+    expect(firstVolunteer.ok).toBe(true);
+    if (!firstVolunteer.ok) return;
+    state = firstVolunteer.state;
 
-    expect(
-      await RecoveryWorker.cancelAssignmentByVolunteer(
-        initialAssignment.id,
-        "Unexpected transport problem during the demo.",
-        initialAssignment.volunteerUserId
-      )
-    ).toBe(true);
+    const rescue = enterRescueMode(state, taskId, "Demo cancellation", now, "user-vol-aarav");
+    expect(rescue.ok).toBe(true);
+    if (!rescue.ok) return;
+    state = rescue.state;
 
-    const backupAssignment = await prisma.assignment.findFirstOrThrow({
-      where: { allocationId, isCurrent: true, status: "OFFERED" },
-    });
-    expect(backupAssignment.volunteerUserId).not.toBe(initialAssignment.volunteerUserId);
-    await prisma.assignment.update({
-      where: { id: backupAssignment.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
-    });
-    await prisma.assignmentOffer.updateMany({
-      where: { assignmentId: backupAssignment.id },
-      data: { status: "ACCEPTED", respondedAt: new Date() },
-    });
-    await prisma.allocation.update({
-      where: { id: allocationId },
-      data: { status: "ASSIGNED" },
-    });
+    const standby = acceptTask(state, "user-vol-priya", taskId, now);
+    expect(standby.ok).toBe(true);
+    if (!standby.ok) return;
+    state = standby.state;
 
-    const collectionChallenge = await HandoverService.generateChallenge({
-      allocationId,
-      stage: "COLLECTION",
-      actorUserId: backupAssignment.volunteerUserId,
-    });
-    await HandoverService.verifyChallenge({
-      allocationId,
-      stage: "COLLECTION",
-      otp: collectionChallenge.demoCode!,
-      verifiedQuantity: 20,
-      actorUserId: backupAssignment.volunteerUserId,
-    });
+    const pickup = confirmPickup(state, "user-vol-priya", taskId, "qr", now);
+    expect(pickup.ok).toBe(true);
+    if (!pickup.ok) return;
+    state = pickup.state;
 
-    const deliveryChallenge = await HandoverService.generateChallenge({
-      allocationId,
-      stage: "DELIVERY",
-      actorUserId: ngoUser.id,
-    });
-    await HandoverService.verifyChallenge({
-      allocationId,
-      stage: "DELIVERY",
-      otp: deliveryChallenge.demoCode!,
-      verifiedQuantity: 18,
-      rejectedQuantity: 2,
-      rejectionReason: "Two containers were damaged in transit.",
-      actorUserId: ngoUser.id,
-    });
+    const receipt = confirmReceipt(state, "user-ngo-anjali", donationId, 22, now);
+    expect(receipt.ok).toBe(true);
+    if (!receipt.ok) return;
+    state = receipt.state;
 
-    const finalAllocation = await prisma.allocation.findUniqueOrThrow({
-      where: { id: allocationId },
-    });
-    const finalItem = await prisma.donationItem.findUniqueOrThrow({
-      where: { id: donation.items[0].id },
-    });
-    const events = await prisma.handoverEvent.findMany({
-      where: { allocationId },
-    });
-    const metrics = await calculateImpactMetrics();
-
-    expect(finalAllocation.status).toBe("PARTIALLY_DELIVERED");
-    expect(finalItem.collectedQuantity).toBe(20);
-    expect(finalItem.deliveredQuantity).toBe(18);
-    expect(events.map((event) => event.stage).sort()).toEqual(["COLLECTION", "DELIVERY"]);
-    expect(metrics.totalDeliveredAcceptedByUnit.SERVINGS).toBeGreaterThanOrEqual(18);
-    expect(metrics.totalDeliveredRejectedByUnit.SERVINGS).toBeGreaterThanOrEqual(2);
+    const donation = state.donations.find((item) => item.id === donationId)!;
+    expect(donation.status).toBe("delivered");
+    expect(donation.acceptedQuantity).toBe(22);
+    expect(calculateImpact(state.donations).estimatedMealEquivalents).toBe(beforeMeals + 22);
   });
 });

@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { IMPACT_CONFIG } from "../src/lib/config/impact";
 import { createSeedState } from "../src/lib/data/seed";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const state = createSeedState();
+  const state = createSeedState() as unknown as Prisma.InputJsonValue;
   await prisma.appSnapshot.upsert({
     where: { id: "default" },
     update: { state },

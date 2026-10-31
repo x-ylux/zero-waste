@@ -5,14 +5,19 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useDemo } from "@/components/providers/DemoProvider";
 import { DonationStatusBadge } from "@/components/ui/StatusBadge";
 import { calculateImpact } from "@/lib/domain/impact";
+import { forecastEndOfDaySurplus } from "@/lib/domain/forecast";
 import { UNIT_LABELS } from "@/lib/domain/labels";
 import { formatDateTime } from "@/lib/format";
+import { BellRing, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 export default function DonorDashboardPage() {
   const { state, user } = useDemo();
   const mine = state.donations.filter((item) => item.donorOrgId === user.orgId);
   const impact = calculateImpact(mine);
+  const forecast = user.orgId
+    ? forecastEndOfDaySurplus(state.donations, user.orgId)
+    : [];
   const active = mine.filter((item) => item.status === "available" || item.status === "reserved" || item.status === "collected");
   const completed = mine.filter((item) => item.status === "delivered");
 
@@ -44,6 +49,59 @@ export default function DonorDashboardPage() {
             </p>
             <p className="text-xs text-warmgray-500">Illustrative estimate — accepted quantity only</p>
           </article>
+        </section>
+        <section
+          aria-labelledby="surplus-forecast-title"
+          className="overflow-hidden rounded-2xl border border-brand-200 bg-brand-50 p-5"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 id="surplus-forecast-title" className="font-semibold text-warmgray-900">
+                  End-of-day surplus forecast
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm text-warmgray-700">
+                  {forecast.length > 0
+                    ? "Based on your recent completed listings, plan ahead for the surplus you may have left today."
+                    : "There is not enough completed listing history yet. Finalize more listings to build a useful forecast."}
+                </p>
+              </div>
+            </div>
+            {forecast.some((item) => item.expectedLeftover > 0) && (
+              <BellRing className="h-5 w-5 shrink-0 text-amber-600" aria-label="Forecast alert" />
+            )}
+          </div>
+          {forecast.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap gap-3">
+                {forecast.map((item) => (
+                  <div key={item.unit} className="min-w-32 rounded-xl border border-brand-200 bg-white/70 px-4 py-3">
+                    <p className="text-xs text-warmgray-600">Expected leftover</p>
+                    <p className="mt-1 text-2xl font-bold text-brand-800">
+                      {item.expectedLeftover} <span className="text-sm font-semibold">{UNIT_LABELS[item.unit]}</span>
+                    </p>
+                    <p className="text-xs text-warmgray-600">
+                      {item.sampleDays} completed {item.sampleDays === 1 ? "day" : "days"} in history
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {forecast.some((item) => item.expectedLeftover > 0) && (
+                <Link
+                  href="/donor/new"
+                  className="rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
+                >
+                  Plan a donation
+                </Link>
+              )}
+            </div>
+          )}
+          <p className="mt-4 text-xs text-warmgray-600">
+            Demo estimate from the average of known leftovers over the last 30 days; limited history can make it inaccurate. No hosted AI or automatic messages are connected.
+          </p>
         </section>
         <section className="space-y-3">
           {mine.length === 0 ? (

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { AppState } from "@/lib/domain/types";
 import type { RescueRepository } from "@/lib/repositories/types";
 
@@ -26,10 +27,11 @@ export class PostgresRescueRepository implements RescueRepository {
       throw new Error("PostgreSQL mode requires DATABASE_URL.");
     }
     const { prisma } = await import("@/lib/db/prisma");
+    const payload = state as unknown as Prisma.InputJsonValue;
     await prisma.appSnapshot.upsert({
       where: { id: "default" },
-      update: { state, updatedAt: new Date() },
-      create: { id: "default", state },
+      update: { state: payload, updatedAt: new Date() },
+      create: { id: "default", state: payload },
     });
   }
 }

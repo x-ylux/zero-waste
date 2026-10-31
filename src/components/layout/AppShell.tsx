@@ -2,6 +2,7 @@
 
 import { ToastStack } from "@/components/ui/ToastStack";
 import { DEMO_PERSONAS } from "@/lib/data/seed";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useDemo } from "@/components/providers/DemoProvider";
 import { classNames } from "@/lib/format";
 import {
@@ -18,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 const NAV = {
@@ -43,10 +44,23 @@ const NAV = {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, setUserId, state, resetDemo, ready } = useDemo();
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const unread = state.notifications.filter((item) => item.userId === user.id && !item.read).length;
   const links = NAV[user.role];
   const personas = DEMO_PERSONAS;
+  const roleHome = {
+    donor: "/donor",
+    ngo: "/ngo",
+    volunteer: "/volunteer",
+    admin: "/admin",
+  } as const;
+
+  function switchDemoAccount(userId: string, role: keyof typeof roleHome) {
+    setUserId(userId);
+    setOpen(false);
+    router.push(roleHome[role]);
+  }
 
   const extraVolunteer = useMemo(
     () => state.users.find((item) => item.id === "user-vol-priya"),
@@ -85,10 +99,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   key={persona.userId}
                   type="button"
-                  onClick={() => setUserId(persona.userId)}
+                  disabled={!ready}
+                  onClick={() => switchDemoAccount(persona.userId, persona.role)}
                   className={classNames(
-                    "w-full rounded-xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600",
-                    active ? "border-brand-600 bg-brand-50 text-brand-950" : "border-cream-200 bg-cream-50 hover:border-brand-300"
+                    "w-full rounded-xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-wait disabled:opacity-60",
+                    active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-cream-200 bg-cream-50 hover:border-brand-300"
                   )}
                 >
                   <span className="block font-semibold">{persona.label}</span>
@@ -100,7 +115,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {user.role === "volunteer" && extraVolunteer && (
             <button
               type="button"
-              onClick={() => setUserId(extraVolunteer.id)}
+              disabled={!ready}
+              onClick={() => switchDemoAccount(extraVolunteer.id, "volunteer")}
               className="mt-2 w-full rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950"
             >
               Demo: continue as {extraVolunteer.name} (standby)
@@ -162,8 +178,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button type="button" className="rounded-lg p-2 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </button>
-            <div className="text-sm text-warmgray-600">
-              Signed in as <span className="font-semibold text-warmgray-900">{user.name}</span> · {user.role}
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-warmgray-600">
+                Signed in as <span className="font-semibold text-warmgray-900">{user.name}</span> · {user.role}
+              </div>
+              <ThemeToggle />
             </div>
             <Link href="/qr/don-07" className="hidden items-center gap-1 text-sm text-brand-800 sm:flex">
               <QrCode className="h-4 w-4" /> Sample QR passport
