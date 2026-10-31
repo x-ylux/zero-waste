@@ -54,25 +54,47 @@ Create a Google Maps Platform project, enable billing and the Maps JavaScript AP
 
 Animal shelters can register as an NGO recipient subtype and are matched only with listings donors explicitly designate as animal-shelter-only. Donors must confirm suitability for the intended species; the app does not certify food safety. These deliveries are reported separately and excluded from human meal-equivalent and CO₂e estimates.
 
-## Native PostgreSQL + PostGIS
+## Native PostgreSQL + PostGIS (no Docker)
 
-```powershell
-Copy-Item .env.example .env
-# Install PostGIS for your PostgreSQL version, then update DATABASE_URL in .env
-# with the username and password of a local PostgreSQL role.
-npx prisma migrate deploy
-npx prisma generate
-```
+Install PostgreSQL for Windows and ensure its Windows service is running (Services → `postgresql-x64-<version>`). Install the matching PostGIS package with StackBuilder if it is not already available for that PostgreSQL version. No Docker or container is used.
 
-The database must have the PostGIS extension available. Have a PostgreSQL administrator create the database and enable the extension before running migrations:
+Using pgAdmin or `psql` as a PostgreSQL administrator, create a dedicated role and database. Replace the example password with a strong local password:
 
 ```sql
-CREATE DATABASE rescuerelay_db;
-\connect rescuerelay_db
+CREATE ROLE rescuerelay WITH LOGIN PASSWORD 'replace-with-a-strong-password';
+CREATE DATABASE rescuerelay_db OWNER rescuerelay;
+```
+
+Connect to `rescuerelay_db` as an administrator and enable PostGIS:
+
+```sql
 CREATE EXTENSION postgis;
 ```
 
-Then configure `DATABASE_URL` in `.env`, for example `postgresql://postgres:your-local-password@localhost:5432/rescuerelay_db?schema=public`. URL-encode any special characters in the password. Do not commit `.env`.
+Set `DATABASE_URL` in your local `.env` to the PostgreSQL service, for example `postgresql://rescuerelay:replace-with-a-strong-password@127.0.0.1:5432/rescuerelay_db?schema=public`. Use the actual port configured for your service and URL-encode special characters in the password. Keep `.env` private; do not overwrite an existing `.env` when copying the example file.
+
+For this workspace, a separate PostgreSQL 18 + PostGIS cluster is configured under `%LOCALAPPDATA%\RescueRelay\PostgreSQL18` on `127.0.0.1:5434`. Its connection settings are in the ignored `.env.local`; the pre-existing Windows PostgreSQL services and databases are not modified. This user-owned cluster is not a Windows service, so start it after a Windows restart with:
+
+```powershell
+$base = "$env:LOCALAPPDATA\RescueRelay\PostgreSQL18"
+$bundle = "$base\postgis\postgis-bundle-pg18-3.6.2x64"
+$env:PATH = "$bundle\bin;$bundle\lib;$env:PATH"
+& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D "$base\data" -l "$base\postgresql.log" -o "-h 127.0.0.1 -p 5434" start
+```
+
+Stop it when needed with `& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D "$env:LOCALAPPDATA\RescueRelay\PostgreSQL18\data" -m fast stop`. It listens on loopback only and uses SCRAM password authentication.
+
+Apply the committed migrations and regenerate the Prisma client. For this workspace, Prisma CLI reads `.env` rather than Next.js's `.env.local`, so load the private local database URL into the current PowerShell process before running migrations:
+
+```powershell
+$databaseUrl = (Get-Content .env.local | Where-Object { $_ -match '^DATABASE_URL=' } | Select-Object -First 1).Split('=', 2)[1].Trim().Trim('"')
+$env:DATABASE_URL = $databaseUrl
+npm run db:migrate
+npm run db:generate
+Remove-Item Env:DATABASE_URL
+```
+
+`db:migrate` runs `prisma migrate deploy` against the configured PostgreSQL database. To create a new development migration after changing the Prisma schema, run `npx prisma migrate dev --name <migration-name>`.
 
 To load the optional demo seed data:
 
@@ -80,7 +102,7 @@ To load the optional demo seed data:
 npm run db:seed
 ```
 
-Set `RESCUE_RELAY_PERSISTENCE=postgres` only after `DATABASE_URL` points at a PostGIS-enabled database. The interactive UI still defaults to the mock/localStorage path unless you wire server handlers to the Postgres adapter.
+With `RESCUE_RELAY_PERSISTENCE=postgres`, demo state loads from and saves to the `app_snapshots` PostgreSQL table. All demo roles intentionally share that prototype dataset. Registered accounts and email verification use their dedicated PostgreSQL tables; the sample demo-account switcher remains a demonstration feature, not production authorization.
 
 ## Real account authentication
 

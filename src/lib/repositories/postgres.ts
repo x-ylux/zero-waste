@@ -3,9 +3,7 @@ import type { AppState } from "@/lib/domain/types";
 import type { RescueRepository } from "@/lib/repositories/types";
 
 /**
- * Relational adapter for the RescueRelay schema in prisma/schema.prisma.
- * Demo mode never instantiates this class. Wire it from server route handlers
- * after DATABASE_URL and PostGIS migrations are available.
+ * Snapshot adapter for demo workflows, plus the relational Prisma schema.
  */
 export class PostgresRescueRepository implements RescueRepository {
   readonly mode = "postgres" as const;

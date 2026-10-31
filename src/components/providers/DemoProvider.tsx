@@ -26,7 +26,7 @@ import {
   persistState,
   readPersistedState,
 } from "@/lib/repositories/memory";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 interface ToastItem {
   id: string;
@@ -71,6 +71,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [isDemoSession, setIsDemoSession] = useState(false);
   const [authenticatedAccount, setAuthenticatedAccountState] = useState<AuthenticatedAccount | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [databasePersistence, setDatabasePersistence] = useState(false);
+  const saveQueueRef = useRef(Promise.resolve());
 
   const pushToast = useCallback((kind: ToastItem["kind"], text: string) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -84,8 +86,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function initialize() {
-      const persisted = readPersistedState();
-      const next = expireStaleListings(persisted ?? createSeedState());
+      let next = createSeedState();
+      try {
+        const stateResponse = await fetch("/api/demo/state");
+        if (!stateResponse.ok) {
+          throw new Error(`Demo data request failed with HTTP ${stateResponse.status}.`);
+        }
+        const result = (await stateResponse.json()) as { state: AppState; persistence: string };
+        next = result.state;
+        if (result.persistence === "postgres") setDatabasePersistence(true);
+      } catch (error) {
+        console.error("Could not load persisted demo data.", error);
+        const persisted = readPersistedState();
+        next = persisted ?? next;
+        pushToast("error", "Could not load saved PostgreSQL data. Changes may not persist until the database reconnects.");
+      }
+      next = expireStaleListings(next);
 
       setState(next);
       persistState(next);
@@ -202,8 +218,27 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     (next: AppState) => {
       setState(next);
       persistState(next);
+      if (databasePersistence) {
+        saveQueueRef.current = saveQueueRef.current
+          .catch(() => undefined)
+          .then(async () => {
+            const response = await fetch("/api/demo/state", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(next),
+            });
+            if (!response.ok) {
+              const result = (await response.json()) as { error?: string };
+              throw new Error(result.error ?? `Database save failed with HTTP ${response.status}.`);
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("Could not persist demo data to PostgreSQL.", error);
+            pushToast("error", "Your change is only in this browser; PostgreSQL could not save it.");
+          });
+      }
     },
-    []
+    [databasePersistence, pushToast]
   );
 
   const apply = useCallback(
